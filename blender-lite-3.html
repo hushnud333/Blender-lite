@@ -1,0 +1,2014 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>BlenderLite (single-file build)</title>
+<style>
+:root {
+  --bg-darkest: #1d1d1d; --bg-dark: #232323; --bg-panel: #2b2b2b; --bg-hover: #3a3a3a;
+  --border: #161616; --text: #d6d6d6; --text-dim: #8a8a8a; --accent: #4772b3; --accent-orange: #e88235;
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { font: 12.5px 'Segoe UI', system-ui, sans-serif; color: var(--text); background: var(--bg-darkest); overflow: hidden; user-select: none; }
+.app-root { display: flex; flex-direction: column; height: 100vh; position: relative; }
+.menu-bar { display: flex; align-items: center; background: var(--bg-dark); border-bottom: 1px solid var(--border); height: 28px; padding: 0 6px; flex-shrink: 0; }
+.menu-item { position: relative; }
+.menu-label { background: none; border: none; color: var(--text); padding: 4px 10px; font: inherit; cursor: pointer; border-radius: 3px; }
+.menu-label:hover { background: var(--bg-hover); }
+.menu-dropdown { position: absolute; top: 26px; left: 0; z-index: 50; background: var(--bg-panel); border: 1px solid var(--border); min-width: 200px; padding: 4px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+.menu-dropdown-item { display: flex; justify-content: space-between; width: 100%; background: none; border: none; color: var(--text); text-align: left; padding: 6px 12px; font: inherit; cursor: pointer; }
+.menu-dropdown-item:hover { background: var(--accent); color: white; }
+.menu-shortcut { color: var(--text-dim); font-size: 11px; }
+.menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
+.menu-bar-title { margin-left: auto; color: var(--text-dim); font-weight: 600; letter-spacing: 0.5px; padding-right: 8px; }
+.main-area { flex: 1; display: flex; min-height: 0; }
+.toolbar { width: 44px; background: var(--bg-dark); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 6px 0; gap: 4px; flex-shrink: 0; }
+.toolbar-btn { width: 34px; height: 34px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 4px; color: var(--text); cursor: pointer; font-size: 16px; }
+.toolbar-btn:hover { background: var(--bg-hover); }
+.toolbar-btn.stub { opacity: 0.45; }
+.toolbar-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+.brush-btn.active { background: var(--accent-orange); border-color: var(--accent-orange); color: white; }
+.toolbar-slider { width: 34px; padding: 4px 0; display: flex; justify-content: center; }
+.toolbar-slider input[type="range"] { width: 60px; transform: rotate(-90deg) translateX(-13px); transform-origin: left center; }
+.viewport-center { flex: 1; position: relative; min-width: 0; }
+.viewport-wrap { position: absolute; inset: 0; }
+.viewport-wrap canvas { width: 100%; height: 100%; display: block; }
+.modal-hint { position: absolute; bottom: 10px; left: 10px; background: rgba(20,20,20,0.85); border: 1px solid var(--border); padding: 4px 10px; border-radius: 3px; font-size: 11.5px; color: var(--accent-orange); }
+.right-sidebar { width: 260px; background: var(--bg-dark); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+.panel { border-bottom: 1px solid var(--border); padding: 6px 8px; }
+.panel-title { font-weight: 600; color: var(--text-dim); margin-bottom: 4px; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px; }
+.outliner { max-height: 240px; overflow-y: auto; }
+.outliner-row { padding: 3px 6px; border-radius: 3px; cursor: pointer; white-space: nowrap; }
+.outliner-row:hover { background: var(--bg-hover); }
+.outliner-row.selected { background: var(--accent); color: white; }
+.outliner-icon { margin-right: 6px; color: var(--text-dim); font-size: 9px; }
+.empty-hint { color: var(--text-dim); font-size: 11.5px; padding: 8px 4px; line-height: 1.5; }
+.tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 8px; flex-wrap: wrap; }
+.tabs button { flex: 1; background: none; border: none; color: var(--text-dim); padding: 6px 0; cursor: pointer; font: inherit; border-bottom: 2px solid transparent; min-width: 50px; }
+.tabs button.active { color: var(--text); border-bottom-color: var(--accent-orange); }
+.props-section { padding: 0 4px 8px; }
+.props-group-title { color: var(--text-dim); font-size: 10.5px; text-transform: uppercase; margin: 6px 0 4px; }
+.vec3-row { display: flex; gap: 4px; margin-bottom: 4px; }
+.num-field { display: flex; flex-direction: column; font-size: 10px; color: var(--text-dim); flex: 1; }
+.num-field input { background: var(--bg-panel); border: 1px solid var(--border); color: var(--text); padding: 3px 4px; border-radius: 3px; font: inherit; width: 100%; margin-top: 2px; }
+.props-section select, .props-section button { background: var(--bg-panel); border: 1px solid var(--border); color: var(--text); padding: 4px 6px; border-radius: 3px; font: inherit; cursor: pointer; }
+.props-section button:hover { background: var(--bg-hover); }
+.props-section button.active { background: var(--accent); border-color: var(--accent); }
+.props-section button:disabled { opacity: 0.35; cursor: default; }
+.mod-card { border: 1px solid var(--border); border-radius: 4px; padding: 6px; margin-bottom: 6px; }
+.mod-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.status-bar { height: 24px; background: var(--bg-dark); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 16px; padding: 0 10px; font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+.status-mode { color: var(--accent-orange); font-weight: 600; }
+.toast { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); background: rgba(30,30,30,0.95); border: 1px solid var(--accent-orange); color: var(--text); padding: 8px 14px; border-radius: 4px; font-size: 12px; max-width: 480px; text-align: center; z-index: 100; }
+.cursor-popup { position: absolute; transform: translate(-10px, -10px); background: var(--bg-panel); border: 1px solid var(--accent-orange); border-radius: 5px; padding: 6px; display: flex; flex-direction: column; gap: 3px; min-width: 130px; z-index: 200; box-shadow: 0 4px 16px rgba(0,0,0,0.6); }
+.cursor-popup-title { font-size: 10px; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.5px; padding: 0 2px 2px; }
+.cursor-popup button { background: var(--bg-dark); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 3px; cursor: pointer; text-align: left; font: inherit; text-transform: capitalize; }
+.cursor-popup button:hover { background: var(--bg-hover); }
+.cursor-popup button.active { background: var(--accent); border-color: var(--accent); }
+.cursor-popup-cancel { color: var(--text-dim) !important; margin-top: 2px; }
+.cursor-popup input[type="color"] { width: 100%; height: 32px; border: none; padding: 0; cursor: pointer; }
+.select-mode-row { display: flex; gap: 2px; margin-bottom: 6px; }
+.select-mode-row button { width: 100%; }
+#loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: #999; font: 14px sans-serif; }
+</style>
+</head>
+<body>
+<div id="root"><div id="loading">Loading BlenderLite… (fetching React / Three.js from CDN — needs internet the first time)</div></div>
+
+<!-- Three.js's own internal files (TransformControls, the exporters) refer
+     to the core library by the short name "three" rather than a full URL.
+     Browsers can't guess what "three" means on their own — this import map
+     is the lookup table that tells them. Without it, those files fail to
+     load with "Failed to resolve module specifier: three". -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+// =====================================================================
+// BlenderLite — single-file build (Tier 1 + Tier 2)
+// Consolidated from the same multi-file Electron project logic. Runs
+// directly in a browser, no build step — React/Three.js load from CDN.
+//
+// Tier 1: primitives, Object Mode transforms, Edit Mode extrude/inset/
+// delete/merge, undo/redo, save/load JSON, glTF/OBJ export, Blender nav.
+// Tier 2 (this build): Mirror/Array/Solidify/Subdivision modifiers, UV
+// seam marking + basic planar unwrap + checker preview, Sculpt mode
+// (Draw/Smooth/Inflate/Grab), and a Flat/Smooth shading toggle.
+//
+// Also includes fixes for bugs found in the previous version: Edit Mode
+// previously had ZERO visual feedback for selection (fixed with a real
+// overlay), the Move/Rotate/Scale toolbar buttons didn't do anything
+// (fixed — they now drive the gizmo mode), and geometry was silently
+// always flat-shaded even when "smooth" was intended.
+//
+// STILL NOT implemented: Bevel, Loop Cut, Knife (need a true half-edge
+// structure), box/lasso select, FBX export, curves, armatures.
+// =====================================================================
+
+import React, { useState, useEffect, useRef, useSyncExternalStore } from 'https://esm.sh/react@18.3.1';
+import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1';
+import htm from 'https://esm.sh/htm@3.1.1';
+import * as THREE from 'three';
+import { TransformControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/TransformControls.js';
+import { GLTFExporter } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/exporters/GLTFExporter.js';
+import { OBJExporter } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/exporters/OBJExporter.js';
+
+const html = htm.bind(React.createElement);
+
+// ---------------------------------------------------------------------
+// mesh/EditableMesh.js
+// ---------------------------------------------------------------------
+let _nextMeshId = 1;
+
+class EditableMesh {
+  constructor() {
+    this.id = _nextMeshId++;
+    this.vertices = [];
+    this.faces = [];
+    this.rev = 0;
+  }
+  touch() { this.rev++; }
+  clone() {
+    const m = new EditableMesh();
+    m.vertices = this.vertices.map((v) => v.slice());
+    m.faces = this.faces.map((f) => f.slice());
+    m.rev = this.rev;
+    return m;
+  }
+  addVertex(x, y, z) { this.vertices.push([x, y, z]); return this.vertices.length - 1; }
+  addFace(indices) { this.faces.push(indices.slice()); return this.faces.length - 1; }
+
+  edgeMap() {
+    const map = new Map();
+    this.faces.forEach((f, fi) => {
+      for (let i = 0; i < f.length; i++) {
+        const a = f[i], b = f[(i + 1) % f.length];
+        const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+        if (!map.has(key)) map.set(key, { a: Math.min(a, b), b: Math.max(a, b), faces: [] });
+        map.get(key).faces.push(fi);
+      }
+    });
+    return map;
+  }
+  faceNormal(faceIdx) {
+    const f = this.faces[faceIdx];
+    const v1 = new THREE.Vector3(...this.vertices[f[0]]);
+    const v2 = new THREE.Vector3(...this.vertices[f[1]]);
+    const v3 = new THREE.Vector3(...this.vertices[f[2]]);
+    return new THREE.Vector3().subVectors(v3, v2).cross(new THREE.Vector3().subVectors(v1, v2)).normalize();
+  }
+  faceCenter(faceIdx) {
+    const f = this.faces[faceIdx];
+    const c = new THREE.Vector3();
+    f.forEach((vi) => c.add(new THREE.Vector3(...this.vertices[vi])));
+    return c.divideScalar(f.length);
+  }
+  extrudeFaces(faceIndices, amount = 0) {
+    const boundaryEdges = this._boundaryEdgesOf(faceIndices);
+    const vertRemap = new Map();
+    const newVertexIndices = [];
+    const avgNormal = new THREE.Vector3();
+    faceIndices.forEach((fi) => avgNormal.add(this.faceNormal(fi)));
+    avgNormal.normalize();
+    const getNewVert = (oldIdx) => {
+      if (vertRemap.has(oldIdx)) return vertRemap.get(oldIdx);
+      const [x, y, z] = this.vertices[oldIdx];
+      const newIdx = this.addVertex(x, y, z);
+      vertRemap.set(oldIdx, newIdx);
+      newVertexIndices.push(newIdx);
+      return newIdx;
+    };
+    const newFaceIndices = [];
+    boundaryEdges.forEach(({ a, b }) => {
+      const a2 = getNewVert(a), b2 = getNewVert(b);
+      newFaceIndices.push(this.addFace([a, b, b2, a2]));
+    });
+    faceIndices.forEach((fi) => { this.faces[fi] = this.faces[fi].map((vi) => getNewVert(vi)); });
+    if (amount !== 0) {
+      newVertexIndices.forEach((vi) => {
+        this.vertices[vi][0] += avgNormal.x * amount;
+        this.vertices[vi][1] += avgNormal.y * amount;
+        this.vertices[vi][2] += avgNormal.z * amount;
+      });
+    }
+    this.touch();
+    return { newFaceIndices, newVertexIndices, normal: avgNormal };
+  }
+  insetFaces(faceIndices, thickness = 0.1) {
+    const newFaceIndices = [];
+    faceIndices.forEach((fi) => {
+      const f = this.faces[fi];
+      const center = this.faceCenter(fi);
+      const innerIdx = f.map((vi) => {
+        const moved = new THREE.Vector3(...this.vertices[vi]).lerp(center, thickness);
+        return this.addVertex(moved.x, moved.y, moved.z);
+      });
+      for (let i = 0; i < f.length; i++) {
+        const a = f[i], b = f[(i + 1) % f.length];
+        newFaceIndices.push(this.addFace([a, b, innerIdx[(i + 1) % f.length], innerIdx[i]]));
+      }
+      this.faces[fi] = innerIdx;
+    });
+    this.touch();
+    return { newFaceIndices };
+  }
+  deleteFaces(faceIndices) {
+    const toDelete = new Set(faceIndices);
+    this.faces = this.faces.filter((_, fi) => !toDelete.has(fi));
+    this._pruneUnusedVertices();
+    this.touch();
+  }
+  deleteVertices(vertexIndices) {
+    const toDelete = new Set(vertexIndices);
+    this.faces = this.faces.filter((f) => !f.some((vi) => toDelete.has(vi)));
+    this._removeVertices(toDelete);
+    this.touch();
+  }
+  deleteEdges(edgeKeys) {
+    const keys = new Set(edgeKeys);
+    this.faces = this.faces.filter((f) => {
+      for (let i = 0; i < f.length; i++) {
+        const a = f[i], b = f[(i + 1) % f.length];
+        const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+        if (keys.has(key)) return false;
+      }
+      return true;
+    });
+    this._pruneUnusedVertices();
+    this.touch();
+  }
+  mergeVerticesAtCenter(vertexIndices) {
+    if (vertexIndices.length < 2) return;
+    const center = new THREE.Vector3();
+    vertexIndices.forEach((vi) => center.add(new THREE.Vector3(...this.vertices[vi])));
+    center.divideScalar(vertexIndices.length);
+    const survivor = vertexIndices[0];
+    this.vertices[survivor] = [center.x, center.y, center.z];
+    const dead = new Set(vertexIndices.slice(1));
+    this.faces = this.faces
+      .map((f) => f.map((vi) => (dead.has(vi) ? survivor : vi)))
+      .map((f) => f.filter((vi, i) => vi !== f[(i - 1 + f.length) % f.length]))
+      .filter((f) => f.length >= 3);
+    this._removeVertices(dead);
+    this.touch();
+  }
+
+  // ---- geometry export: Flat (default, per-face duplicated verts) vs
+  // Smooth (shares the mesh's existing indices so normals genuinely
+  // average across faces). Smooth mode does not support per-corner UVs.
+  toBufferGeometry({ uvLayout = null, smooth = false } = {}) {
+    return smooth ? this._toSmoothBufferGeometry() : this._toFlatBufferGeometry(uvLayout);
+  }
+  _toSmoothBufferGeometry() {
+    const positions = this.vertices.flat();
+    const indexTriplets = [];
+    this.faces.forEach((f) => { for (let i = 1; i < f.length - 1; i++) indexTriplets.push(f[0], f[i], f[i + 1]); });
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geom.setIndex(indexTriplets);
+    geom.computeVertexNormals();
+    return geom;
+  }
+  _toFlatBufferGeometry(uvLayout) {
+    const positions = [], normals = [], indexTriplets = [];
+    const uvs = uvLayout ? [] : null;
+    let cursor = 0;
+    this.faces.forEach((f, fi) => {
+      const n = this.faceNormal(fi);
+      const base = cursor;
+      f.forEach((vi, corner) => {
+        const [x, y, z] = this.vertices[vi];
+        positions.push(x, y, z);
+        normals.push(n.x, n.y, n.z);
+        if (uvs) {
+          const uv = uvLayout[fi] && uvLayout[fi][corner] ? uvLayout[fi][corner] : [0, 0];
+          uvs.push(uv[0], uv[1]);
+        }
+        cursor++;
+      });
+      for (let i = 1; i < f.length - 1; i++) indexTriplets.push(base, base + i, base + i + 1);
+    });
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geom.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    if (uvs) geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geom.setIndex(indexTriplets);
+    geom.computeVertexNormals();
+    return geom;
+  }
+  // Bevel: works cleanly for edges that don't share a face with another
+  // selected edge (the common case for hard-surface low-poly modeling —
+  // beveling the 12 edges of a box, a gun's slide, a car's body panels).
+  // For each selected edge, insets it slightly into each adjacent face and
+  // bridges the two insets with a new flat bevel face. Edges that share a
+  // face AND both get selected can produce overlapping geometry at the
+  // shared corner — there's no vertex-corner merge pass, unlike a full
+  // half-edge bevel implementation. Good enough for most box-modeling
+  // work; flagging the limit rather than hiding it.
+  bevelEdges(edgeKeys, width = 0.1) {
+    const edgeMap = this.edgeMap();
+    const newFaces = [];
+    edgeKeys.forEach((key) => {
+      const edge = edgeMap.get(key);
+      if (!edge) return;
+      const { a, b, faces } = edge;
+      const insetVerts = [];
+      faces.forEach((fi) => {
+        const center = this.faceCenter(fi);
+        const pa = new THREE.Vector3(...this.vertices[a]);
+        const pb = new THREE.Vector3(...this.vertices[b]);
+        const dirA = new THREE.Vector3().subVectors(center, pa);
+        const lenA = dirA.length() || 1;
+        dirA.normalize();
+        const newA = pa.clone().addScaledVector(dirA, Math.min(width, lenA * 0.9));
+        const dirB = new THREE.Vector3().subVectors(center, pb);
+        const lenB = dirB.length() || 1;
+        dirB.normalize();
+        const newB = pb.clone().addScaledVector(dirB, Math.min(width, lenB * 0.9));
+        const ia = this.addVertex(newA.x, newA.y, newA.z);
+        const ib = this.addVertex(newB.x, newB.y, newB.z);
+        const f = this.faces[fi];
+        const idxA = f.indexOf(a), idxB = f.indexOf(b);
+        if (idxA !== -1) f[idxA] = ia;
+        if (idxB !== -1) f[idxB] = ib;
+        insetVerts.push({ ia, ib });
+      });
+      if (insetVerts.length === 2) {
+        const [f1, f2] = insetVerts;
+        newFaces.push(this.addFace([f1.ia, f1.ib, f2.ib, f2.ia]));
+      } else if (insetVerts.length === 1) {
+        const f1 = insetVerts[0];
+        newFaces.push(this.addFace([a, b, f1.ib, f1.ia]));
+      }
+    });
+    this._pruneUnusedVertices();
+    this.touch();
+    return { newFaces };
+  }
+
+  // Shift+N equivalent: flips any face whose normal points toward the
+  // mesh's own centroid instead of away from it. A simple, effective fix
+  // for the "some faces look inside-out" problem that's common in
+  // hand-built low-poly meshes — not a substitute for Blender's full
+  // connectivity-based recalculation, but correct for any mesh that's
+  // reasonably convex or star-shaped from its centroid (true for the vast
+  // majority of hard-surface game props).
+  recalculateNormalsOutward() {
+    const centroid = new THREE.Vector3();
+    this.vertices.forEach((v) => centroid.add(new THREE.Vector3(...v)));
+    centroid.divideScalar(this.vertices.length || 1);
+    this.faces.forEach((f, fi) => {
+      const n = this.faceNormal(fi);
+      const toFace = new THREE.Vector3().subVectors(this.faceCenter(fi), centroid);
+      if (n.dot(toFace) < 0) this.faces[fi] = f.slice().reverse();
+    });
+    this.touch();
+  }
+
+  toJSON() { return { vertices: this.vertices, faces: this.faces }; }
+  static fromJSON(data) {
+    const m = new EditableMesh();
+    m.vertices = data.vertices.map((v) => v.slice());
+    m.faces = data.faces.map((f) => f.slice());
+    return m;
+  }
+  _boundaryEdgesOf(faceIndices) {
+    const faceSet = new Set(faceIndices);
+    const edges = [];
+    faceIndices.forEach((fi) => {
+      const f = this.faces[fi];
+      for (let i = 0; i < f.length; i++) {
+        const a = f[i], b = f[(i + 1) % f.length];
+        const sharedWith = this.faces.findIndex(
+          (of_, ofi) => ofi !== fi && faceSet.has(ofi) && of_.includes(a) && of_.includes(b)
+        );
+        if (sharedWith === -1) edges.push({ a, b });
+      }
+    });
+    return edges;
+  }
+  _pruneUnusedVertices() {
+    const used = new Set();
+    this.faces.forEach((f) => f.forEach((vi) => used.add(vi)));
+    this._removeVertices(new Set(this.vertices.map((_, i) => i).filter((i) => !used.has(i))));
+  }
+  _removeVertices(deadSet) {
+    if (deadSet.size === 0) return;
+    const remap = new Map();
+    const newVerts = [];
+    this.vertices.forEach((v, i) => { if (deadSet.has(i)) return; remap.set(i, newVerts.length); newVerts.push(v); });
+    this.vertices = newVerts;
+    this.faces = this.faces.map((f) => f.map((vi) => remap.get(vi)));
+  }
+}
+
+// ---------------------------------------------------------------------
+// mesh/primitives.js
+// ---------------------------------------------------------------------
+function fromBufferGeometry(geometry, weldEpsilon = 1e-5) {
+  const mesh = new EditableMesh();
+  const pos = geometry.attributes.position;
+  const index = geometry.index ? geometry.index.array : Array.from({ length: pos.count }, (_, i) => i);
+  const key = (x, y, z) => `${Math.round(x / weldEpsilon)}_${Math.round(y / weldEpsilon)}_${Math.round(z / weldEpsilon)}`;
+  const weldMap = new Map();
+  const remapVertex = (i) => {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const k = key(x, y, z);
+    if (weldMap.has(k)) return weldMap.get(k);
+    const newIdx = mesh.addVertex(x, y, z);
+    weldMap.set(k, newIdx);
+    return newIdx;
+  };
+  for (let i = 0; i < index.length; i += 3) {
+    const a = remapVertex(index[i]), b = remapVertex(index[i + 1]), c = remapVertex(index[i + 2]);
+    if (a !== b && b !== c && a !== c) mesh.addFace([a, b, c]);
+  }
+  return mesh;
+}
+const makeCube = (size = 2) => fromBufferGeometry(new THREE.BoxGeometry(size, size, size));
+const makeUVSphere = (r = 1, w = 16, h = 12) => fromBufferGeometry(new THREE.SphereGeometry(r, w, h));
+const makeIcoSphere = (r = 1, d = 1) => fromBufferGeometry(new THREE.IcosahedronGeometry(r, d));
+const makeCylinder = (r = 1, h = 2, s = 16) => fromBufferGeometry(new THREE.CylinderGeometry(r, r, h, s));
+const makeCone = (r = 1, h = 2, s = 16) => fromBufferGeometry(new THREE.ConeGeometry(r, h, s));
+const makePlane = (size = 2) => fromBufferGeometry(new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2));
+const makeTorus = (r = 1, t = 0.35, rs = 12, ts = 24) => fromBufferGeometry(new THREE.TorusGeometry(r, t, rs, ts));
+const PRIMITIVES = { cube: makeCube, uv_sphere: makeUVSphere, ico_sphere: makeIcoSphere, cylinder: makeCylinder, cone: makeCone, plane: makePlane, torus: makeTorus };
+
+// ---------------------------------------------------------------------
+// mesh/modifiers.js — Mirror / Array / Solidify / Subdivision
+// ---------------------------------------------------------------------
+function mirrorModifier(mesh, { axis = 'x', merge = true, mergeDist = 1e-4 } = {}) {
+  const out = mesh.clone();
+  const axisIdx = axis === 'x' ? 0 : axis === 'y' ? 1 : 2;
+  const remap = mesh.vertices.map((v) => { const nv = v.slice(); nv[axisIdx] = -nv[axisIdx]; return nv; });
+  const vertMap = new Map();
+  remap.forEach((v, i) => {
+    if (merge && Math.abs(mesh.vertices[i][axisIdx]) < mergeDist) vertMap.set(i, i);
+    else vertMap.set(i, out.addVertex(...v));
+  });
+  mesh.faces.forEach((f) => out.addFace(f.map((vi) => vertMap.get(vi)).reverse()));
+  out.touch();
+  return out;
+}
+function arrayModifier(mesh, { count = 3, offset = [1.2, 0, 0] } = {}) {
+  const out = new EditableMesh();
+  for (let i = 0; i < count; i++) {
+    const vertBase = out.vertices.length;
+    mesh.vertices.forEach((v) => out.addVertex(v[0] + offset[0] * i, v[1] + offset[1] * i, v[2] + offset[2] * i));
+    mesh.faces.forEach((f) => out.addFace(f.map((vi) => vi + vertBase)));
+  }
+  out.touch();
+  return out;
+}
+function _vertexNormalsFor(mesh) {
+  const acc = mesh.vertices.map(() => new THREE.Vector3());
+  mesh.faces.forEach((f, fi) => { const n = mesh.faceNormal(fi); f.forEach((vi) => acc[vi].add(n)); });
+  return acc.map((v) => (v.lengthSq() > 0 ? v.normalize() : new THREE.Vector3(0, 1, 0)));
+}
+function solidifyModifier(mesh, { thickness = 0.05 } = {}) {
+  const out = mesh.clone();
+  const normal = _vertexNormalsFor(mesh);
+  const innerVertStart = out.vertices.length;
+  mesh.vertices.forEach((v, i) => { const n = normal[i]; out.addVertex(v[0] - n.x * thickness, v[1] - n.y * thickness, v[2] - n.z * thickness); });
+  mesh.faces.forEach((f) => out.addFace(f.map((vi) => vi + innerVertStart).reverse()));
+  const edgeMap = mesh.edgeMap();
+  edgeMap.forEach(({ a, b, faces }) => { if (faces.length !== 1) return; out.addFace([a, b, b + innerVertStart, a + innerVertStart]); });
+  out.touch();
+  return out;
+}
+function subdivideOnce(mesh) {
+  const out = new EditableMesh();
+  mesh.vertices.forEach((v) => out.addVertex(...v));
+  const edgeMidpoint = new Map();
+  const getEdgeMid = (a, b) => {
+    const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+    if (edgeMidpoint.has(key)) return edgeMidpoint.get(key);
+    const va = mesh.vertices[a], vb = mesh.vertices[b];
+    const idx = out.addVertex((va[0] + vb[0]) / 2, (va[1] + vb[1]) / 2, (va[2] + vb[2]) / 2);
+    edgeMidpoint.set(key, idx);
+    return idx;
+  };
+  mesh.faces.forEach((f, fi) => {
+    const center = mesh.faceCenter(fi);
+    const centerIdx = out.addVertex(center.x, center.y, center.z);
+    for (let i = 0; i < f.length; i++) {
+      const a = f[i], b = f[(i + 1) % f.length];
+      const prevB = f[(i - 1 + f.length) % f.length];
+      out.addFace([getEdgeMid(prevB, a), a, getEdgeMid(a, b), centerIdx]);
+    }
+  });
+  out.touch();
+  return out;
+}
+function subdivideModifier(mesh, { levels = 1 } = {}) {
+  let result = mesh;
+  const clamped = Math.max(0, Math.min(2, levels));
+  for (let i = 0; i < clamped; i++) result = subdivideOnce(result);
+  return result;
+}
+const MODIFIER_FNS = { mirror: mirrorModifier, array: arrayModifier, solidify: solidifyModifier, subdivision: subdivideModifier };
+const MODIFIER_DEFAULT_PARAMS = {
+  mirror: { axis: 'x', merge: true },
+  array: { count: 3, offset: [1.2, 0, 0] },
+  solidify: { thickness: 0.05 },
+  subdivision: { levels: 1 },
+};
+function evaluateModifierStack(baseMesh, modifiers) {
+  let result = baseMesh;
+  modifiers.forEach((mod) => { if (!mod.enabled) return; const fn = MODIFIER_FNS[mod.type]; if (fn) result = fn(result, mod.params); });
+  return result;
+}
+
+// ---------------------------------------------------------------------
+// mesh/unwrap.js — basic seam-based planar unwrap (not conformal)
+// ---------------------------------------------------------------------
+function basicUnwrap(mesh, seamEdgeKeys = []) {
+  const seams = new Set(seamEdgeKeys);
+  const edgeMap = mesh.edgeMap();
+  const faceAdjacency = mesh.faces.map(() => []);
+  edgeMap.forEach(({ faces }, key) => {
+    if (faces.length !== 2) return;
+    if (seams.has(key)) return;
+    faceAdjacency[faces[0]].push(faces[1]);
+    faceAdjacency[faces[1]].push(faces[0]);
+  });
+  const visited = new Array(mesh.faces.length).fill(false);
+  const islands = [];
+  for (let start = 0; start < mesh.faces.length; start++) {
+    if (visited[start]) continue;
+    const island = []; const stack = [start]; visited[start] = true;
+    while (stack.length) {
+      const fi = stack.pop(); island.push(fi);
+      faceAdjacency[fi].forEach((n) => { if (!visited[n]) { visited[n] = true; stack.push(n); } });
+    }
+    islands.push(island);
+  }
+  const uvLayout = {};
+  let cursorX = 0;
+  const padding = 0.03;
+  islands.forEach((island) => {
+    const avgNormal = new THREE.Vector3();
+    island.forEach((fi) => avgNormal.add(mesh.faceNormal(fi)));
+    avgNormal.normalize();
+    if (avgNormal.lengthSq() < 1e-6) avgNormal.set(0, 1, 0);
+    const helper = Math.abs(avgNormal.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    const uAxis = new THREE.Vector3().crossVectors(helper, avgNormal).normalize();
+    const vAxis = new THREE.Vector3().crossVectors(avgNormal, uAxis).normalize();
+    let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+    const projected = {};
+    island.forEach((fi) => {
+      const f = mesh.faces[fi];
+      projected[fi] = f.map((vi) => {
+        const p = new THREE.Vector3(...mesh.vertices[vi]);
+        const u = p.dot(uAxis), v = p.dot(vAxis);
+        minU = Math.min(minU, u); maxU = Math.max(maxU, u);
+        minV = Math.min(minV, v); maxV = Math.max(maxV, v);
+        return [u, v];
+      });
+    });
+    const spanU = Math.max(maxU - minU, 1e-6), spanV = Math.max(maxV - minV, 1e-6);
+    const span = Math.max(spanU, spanV);
+    island.forEach((fi) => { uvLayout[fi] = projected[fi].map(([u, v]) => [cursorX + (u - minU) / span, (v - minV) / span]); });
+    cursorX += spanU / span + padding;
+  });
+  const totalWidth = Math.max(cursorX, 1e-6);
+  Object.keys(uvLayout).forEach((fi) => { uvLayout[fi] = uvLayout[fi].map(([u, v]) => [u / totalWidth, v]); });
+  return uvLayout;
+}
+
+// ---------------------------------------------------------------------
+// mesh/sculpt.js — Draw / Smooth / Inflate / Grab brushes
+// ---------------------------------------------------------------------
+function buildTopology(mesh) {
+  const vertNeighbors = mesh.vertices.map(() => new Set());
+  const vertFaces = mesh.vertices.map(() => []);
+  mesh.faces.forEach((f, fi) => {
+    for (let i = 0; i < f.length; i++) {
+      const a = f[i], b = f[(i + 1) % f.length];
+      vertNeighbors[a].add(b); vertNeighbors[b].add(a);
+      vertFaces[a].push(fi);
+    }
+  });
+  return { vertNeighbors, vertFaces };
+}
+function smoothFalloff(dist, radius) { if (dist >= radius) return 0; const t = 1 - dist / radius; return t * t * (3 - 2 * t); }
+function vertexNormalAt(mesh, vi, vertFaces) {
+  const n = new THREE.Vector3();
+  vertFaces[vi].forEach((fi) => n.add(mesh.faceNormal(fi)));
+  return n.lengthSq() > 0 ? n.normalize() : new THREE.Vector3(0, 1, 0);
+}
+function applyBrush(mesh, topology, { hitPoint, hitNormal, radius, strength, brushType, grabDelta }) {
+  const { vertNeighbors, vertFaces } = topology;
+  const affected = [];
+  mesh.vertices.forEach((v, vi) => {
+    const dist = Math.hypot(v[0] - hitPoint.x, v[1] - hitPoint.y, v[2] - hitPoint.z);
+    if (dist < radius) affected.push({ vi, falloff: smoothFalloff(dist, radius) });
+  });
+  if (affected.length === 0) return false;
+  if (brushType === 'draw') {
+    affected.forEach(({ vi, falloff }) => {
+      const v = mesh.vertices[vi];
+      v[0] += hitNormal.x * strength * falloff * 0.1;
+      v[1] += hitNormal.y * strength * falloff * 0.1;
+      v[2] += hitNormal.z * strength * falloff * 0.1;
+    });
+  } else if (brushType === 'inflate') {
+    affected.forEach(({ vi, falloff }) => {
+      const n = vertexNormalAt(mesh, vi, vertFaces);
+      const v = mesh.vertices[vi];
+      v[0] += n.x * strength * falloff * 0.1;
+      v[1] += n.y * strength * falloff * 0.1;
+      v[2] += n.z * strength * falloff * 0.1;
+    });
+  } else if (brushType === 'smooth') {
+    const targets = affected.map(({ vi }) => {
+      const neighbors = [...vertNeighbors[vi]];
+      if (neighbors.length === 0) return null;
+      const avg = new THREE.Vector3();
+      neighbors.forEach((ni) => avg.add(new THREE.Vector3(...mesh.vertices[ni])));
+      return avg.divideScalar(neighbors.length);
+    });
+    affected.forEach(({ vi, falloff }, i) => {
+      const target = targets[i];
+      if (!target) return;
+      const v = mesh.vertices[vi];
+      const t = Math.min(1, strength * falloff * 0.5);
+      v[0] += (target.x - v[0]) * t; v[1] += (target.y - v[1]) * t; v[2] += (target.z - v[2]) * t;
+    });
+  } else if (brushType === 'grab' && grabDelta) {
+    affected.forEach(({ vi, falloff }) => {
+      const v = mesh.vertices[vi];
+      v[0] += grabDelta.x * falloff; v[1] += grabDelta.y * falloff; v[2] += grabDelta.z * falloff;
+    });
+  }
+  mesh.touch();
+  return true;
+}
+
+// ---------------------------------------------------------------------
+// state/history.js
+// ---------------------------------------------------------------------
+const MAX_DEPTH = 20;
+function createHistory() { return { undoStack: [], redoStack: [] }; }
+function pushCommand(h, cmd) { h.undoStack.push(cmd); if (h.undoStack.length > MAX_DEPTH) h.undoStack.shift(); h.redoStack.length = 0; }
+function histUndo(h) { const c = h.undoStack.pop(); if (!c) return false; c.undo(); h.redoStack.push(c); return true; }
+function histRedo(h) { const c = h.redoStack.pop(); if (!c) return false; c.redo(); h.undoStack.push(c); return true; }
+
+// ---------------------------------------------------------------------
+// tiny zustand-alike store
+// ---------------------------------------------------------------------
+function createStore(initializer) {
+  let state;
+  const listeners = new Set();
+  function setState(partial) {
+    const next = typeof partial === 'function' ? partial(state) : partial;
+    state = Object.assign({}, state, next);
+    listeners.forEach((l) => l());
+  }
+  function getState() { return state; }
+  function subscribe(l) { listeners.add(l); return () => listeners.delete(l); }
+  state = initializer(setState, getState);
+  function useStoreHook(selector) { return useSyncExternalStore(subscribe, () => selector(getState())); }
+  useStoreHook.getState = getState;
+  useStoreHook.setState = setState;
+  return useStoreHook;
+}
+
+// ---------------------------------------------------------------------
+// state/store.js
+// ---------------------------------------------------------------------
+let _nextObjId = 1;
+let _nextModId = 1;
+function makeObject({ name, mesh, position = [0, 0, 0], rotation = [0, 0, 0], scale = [1, 1, 1], color = '#c9c9c9' }) {
+  return {
+    id: _nextObjId++, name, mesh, position, rotation, scale, color, parentId: null, visible: true,
+    shading: 'flat', modifiers: [], seams: [], uvLayout: null,
+  };
+}
+const history = createHistory();
+
+const useStore = createStore((set, get) => ({
+  objects: {}, order: [], selectedIds: [], activeId: null,
+  mode: 'object', transformTool: null, gizmoMode: 'translate', viewportShading: 'solid',
+  editSelectMode: 'vertex', editSelection: { verts: [], edges: [], faces: [] },
+  sculptBrush: 'draw', sculptRadius: 0.5, sculptStrength: 0.5,
+
+  canUndo: () => history.undoStack.length > 0,
+  canRedo: () => history.redoStack.length > 0,
+  undo: () => { if (histUndo(history)) set((s) => ({ ...s })); },
+  redo: () => { if (histRedo(history)) set((s) => ({ ...s })); },
+  _pushCommand: (cmd) => pushCommand(history, cmd),
+
+  addPrimitive(meshFactory, name) {
+    const mesh = meshFactory();
+    const obj = makeObject({ name, mesh });
+    set((s) => ({ objects: { ...s.objects, [obj.id]: obj }, order: [...s.order, obj.id], selectedIds: [obj.id], activeId: obj.id }));
+    get()._pushCommand({
+      label: `Add ${name}`,
+      undo: () => set((s) => { const { [obj.id]: _, ...rest } = s.objects; return { objects: rest, order: s.order.filter((id) => id !== obj.id) }; }),
+      redo: () => set((s) => ({ objects: { ...s.objects, [obj.id]: obj }, order: [...s.order, obj.id] })),
+    });
+    return obj.id;
+  },
+  deleteObjects(ids) {
+    const removed = ids.map((id) => [id, get().objects[id]]);
+    set((s) => {
+      const objects = { ...s.objects };
+      ids.forEach((id) => delete objects[id]);
+      return { objects, order: s.order.filter((id) => !ids.includes(id)), selectedIds: s.selectedIds.filter((id) => !ids.includes(id)), activeId: ids.includes(s.activeId) ? null : s.activeId };
+    });
+    get()._pushCommand({
+      label: 'Delete Object(s)',
+      undo: () => set((s) => { const objects = { ...s.objects }; removed.forEach(([id, obj]) => (objects[id] = obj)); return { objects, order: [...s.order, ...removed.map(([id]) => id)] }; }),
+      redo: () => set((s) => { const objects = { ...s.objects }; ids.forEach((id) => delete objects[id]); return { objects, order: s.order.filter((id) => !ids.includes(id)) }; }),
+    });
+  },
+  duplicateObjects(ids) {
+    const copies = ids.map((id) => {
+      const src = get().objects[id];
+      return makeObject({ name: `${src.name}.copy`, mesh: src.mesh.clone(), position: src.position.slice(), rotation: src.rotation.slice(), scale: src.scale.slice(), color: src.color });
+    });
+    set((s) => ({ objects: { ...s.objects, ...Object.fromEntries(copies.map((o) => [o.id, o])) }, order: [...s.order, ...copies.map((o) => o.id)], selectedIds: copies.map((o) => o.id), activeId: copies[copies.length - 1]?.id ?? s.activeId }));
+    get()._pushCommand({
+      label: 'Duplicate',
+      undo: () => set((s) => { const objects = { ...s.objects }; copies.forEach((o) => delete objects[o.id]); return { objects, order: s.order.filter((id) => !copies.some((o) => o.id === id)) }; }),
+      redo: () => set((s) => ({ objects: { ...s.objects, ...Object.fromEntries(copies.map((o) => [o.id, o])) }, order: [...s.order, ...copies.map((o) => o.id)] })),
+    });
+    return copies.map((o) => o.id);
+  },
+  setSelectedIds(ids) { set({ selectedIds: ids, activeId: ids[ids.length - 1] ?? null }); },
+
+  _dragSnapshot: null,
+  beginTransform() {
+    const s = get();
+    const snap = {};
+    s.selectedIds.forEach((id) => { const o = s.objects[id]; snap[id] = { position: o.position.slice(), rotation: o.rotation.slice(), scale: o.scale.slice() }; });
+    set({ _dragSnapshot: snap });
+  },
+  updateTransformLive(id, patch) { set((s) => ({ objects: { ...s.objects, [id]: { ...s.objects[id], ...patch } } })); },
+  commitTransform() {
+    const before = get()._dragSnapshot;
+    if (!before) return;
+    const after = {};
+    Object.keys(before).forEach((id) => { const o = get().objects[id]; after[id] = { position: o.position.slice(), rotation: o.rotation.slice(), scale: o.scale.slice() }; });
+    set({ _dragSnapshot: null });
+    get()._pushCommand({
+      label: 'Transform',
+      undo: () => set((s) => { const objects = { ...s.objects }; Object.entries(before).forEach(([id, t]) => (objects[id] = { ...objects[id], ...t })); return { objects }; }),
+      redo: () => set((s) => { const objects = { ...s.objects }; Object.entries(after).forEach(([id, t]) => (objects[id] = { ...objects[id], ...t })); return { objects }; }),
+    });
+  },
+  setColor(id, color) {
+    const prev = get().objects[id].color;
+    set((s) => ({ objects: { ...s.objects, [id]: { ...s.objects[id], color } } }));
+    get()._pushCommand({
+      label: 'Material Color',
+      undo: () => set((s) => ({ objects: { ...s.objects, [id]: { ...s.objects[id], color: prev } } })),
+      redo: () => set((s) => ({ objects: { ...s.objects, [id]: { ...s.objects[id], color } } })),
+    });
+  },
+  setShading(id, shading) {
+    const prev = get().objects[id].shading;
+    set((s) => ({ objects: { ...s.objects, [id]: { ...s.objects[id], shading } } }));
+    get()._pushCommand({
+      label: shading === 'smooth' ? 'Shade Smooth' : 'Shade Flat',
+      undo: () => set((s) => ({ objects: { ...s.objects, [id]: { ...s.objects[id], shading: prev } } })),
+      redo: () => set((s) => ({ objects: { ...s.objects, [id]: { ...s.objects[id], shading } } })),
+    });
+  },
+  setGizmoMode(m) { set({ gizmoMode: m }); },
+  setViewportShading(m) { set({ viewportShading: m }); },
+  setMode(mode) { set({ mode, editSelection: { verts: [], edges: [], faces: [] } }); },
+  setEditSelectMode(m) { set({ editSelectMode: m, editSelection: { verts: [], edges: [], faces: [] } }); },
+  setEditSelection(sel) { set({ editSelection: sel }); },
+  applyMeshOp(objId, mutateFn, label) {
+    const obj = get().objects[objId];
+    if (!obj) return;
+    const before = obj.mesh.clone();
+    mutateFn(obj.mesh);
+    const after = obj.mesh.clone();
+    set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], mesh: after } } }));
+    get()._pushCommand({
+      label,
+      undo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], mesh: before } } })),
+      redo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], mesh: after } } })),
+    });
+  },
+
+  // ---- Tier 2: modifier stack ----
+  addModifier(objId, type) {
+    const mod = { id: _nextModId++, type, params: { ...MODIFIER_DEFAULT_PARAMS[type] }, enabled: true };
+    set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], modifiers: [...s.objects[objId].modifiers, mod] } } }));
+    get()._pushCommand({
+      label: `Add ${type} Modifier`,
+      undo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], modifiers: s.objects[objId].modifiers.filter((m) => m.id !== mod.id) } } })),
+      redo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], modifiers: [...s.objects[objId].modifiers, mod] } } })),
+    });
+  },
+  removeModifier(objId, modId) {
+    const removed = get().objects[objId].modifiers.find((m) => m.id === modId);
+    const idx = get().objects[objId].modifiers.findIndex((m) => m.id === modId);
+    set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], modifiers: s.objects[objId].modifiers.filter((m) => m.id !== modId) } } }));
+    get()._pushCommand({
+      label: 'Remove Modifier',
+      undo: () => set((s) => { const mods = s.objects[objId].modifiers.slice(); mods.splice(idx, 0, removed); return { objects: { ...s.objects, [objId]: { ...s.objects[objId], modifiers: mods } } }; }),
+      redo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], modifiers: s.objects[objId].modifiers.filter((m) => m.id !== modId) } } })),
+    });
+  },
+  moveModifier(objId, modId, direction) {
+    set((s) => {
+      const mods = s.objects[objId].modifiers.slice();
+      const i = mods.findIndex((m) => m.id === modId);
+      const j = i + direction;
+      if (i < 0 || j < 0 || j >= mods.length) return {};
+      [mods[i], mods[j]] = [mods[j], mods[i]];
+      return { objects: { ...s.objects, [objId]: { ...s.objects[objId], modifiers: mods } } };
+    });
+  },
+  updateModifierParams(objId, modId, paramPatch) {
+    set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], modifiers: s.objects[objId].modifiers.map((m) => (m.id === modId ? { ...m, params: { ...m.params, ...paramPatch } } : m)) } } }));
+  },
+  toggleModifierEnabled(objId, modId) {
+    set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], modifiers: s.objects[objId].modifiers.map((m) => (m.id === modId ? { ...m, enabled: !m.enabled } : m)) } } }));
+  },
+  applyModifier(objId, modId) {
+    const obj = get().objects[objId];
+    const mod = obj.modifiers.find((m) => m.id === modId);
+    if (!mod) return;
+    const idx = obj.modifiers.findIndex((m) => m.id === modId);
+    const toBake = obj.modifiers.slice(0, idx + 1);
+    const remaining = obj.modifiers.slice(idx + 1);
+    const beforeMesh = obj.mesh, beforeMods = obj.modifiers;
+    const bakedMesh = evaluateModifierStack(obj.mesh, toBake);
+    bakedMesh.touch();
+    set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], mesh: bakedMesh, modifiers: remaining } } }));
+    get()._pushCommand({
+      label: `Apply ${mod.type} Modifier`,
+      undo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], mesh: beforeMesh, modifiers: beforeMods } } })),
+      redo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], mesh: bakedMesh, modifiers: remaining } } })),
+    });
+  },
+
+  // ---- Tier 2: UV seams + basic unwrap ----
+  toggleSeams(objId, edgeKeys) {
+    const obj = get().objects[objId];
+    const seamSet = new Set(obj.seams);
+    const allMarked = edgeKeys.every((k) => seamSet.has(k));
+    edgeKeys.forEach((k) => (allMarked ? seamSet.delete(k) : seamSet.add(k)));
+    const next = [...seamSet], prev = obj.seams;
+    set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], seams: next } } }));
+    get()._pushCommand({
+      label: 'Mark/Clear Seam',
+      undo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], seams: prev } } })),
+      redo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], seams: next } } })),
+    });
+  },
+  computeUnwrap(objId) {
+    const obj = get().objects[objId];
+    const prevLayout = obj.uvLayout;
+    const layout = basicUnwrap(obj.mesh, obj.seams);
+    set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], uvLayout: layout } } }));
+    get()._pushCommand({
+      label: 'Unwrap UVs',
+      undo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], uvLayout: prevLayout } } })),
+      redo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], uvLayout: layout } } })),
+    });
+  },
+
+  // ---- Tier 2: Sculpt mode (one undo step per whole stroke) ----
+  _sculptStrokeBefore: null,
+  _sculptTopology: null,
+  beginSculptStroke(objId) {
+    const obj = get().objects[objId];
+    set({ _sculptStrokeBefore: obj.mesh.clone(), _sculptTopology: buildTopology(obj.mesh) });
+  },
+  applySculptSample(objId, brushParams) {
+    const obj = get().objects[objId];
+    const topology = get()._sculptTopology;
+    if (!topology) return;
+    const changed = applyBrush(obj.mesh, topology, { ...brushParams, brushType: get().sculptBrush, radius: get().sculptRadius, strength: get().sculptStrength });
+    if (changed) set((s) => ({ objects: { ...s.objects } }));
+  },
+  commitSculptStroke(objId) {
+    const before = get()._sculptStrokeBefore;
+    if (!before) return;
+    const after = get().objects[objId].mesh.clone();
+    set({ _sculptStrokeBefore: null, _sculptTopology: null });
+    get()._pushCommand({
+      label: 'Sculpt Stroke',
+      undo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], mesh: before } } })),
+      redo: () => set((s) => ({ objects: { ...s.objects, [objId]: { ...s.objects[objId], mesh: after } } })),
+    });
+  },
+  setSculptBrush(brush) { set({ sculptBrush: brush }); },
+  setSculptRadius(r) { set({ sculptRadius: r }); },
+  setSculptStrength(s) { set({ sculptStrength: s }); },
+
+  serializeScene() {
+    const s = get();
+    return {
+      version: 2,
+      objects: s.order.map((id) => {
+        const o = s.objects[id];
+        return { id: o.id, name: o.name, position: o.position, rotation: o.rotation, scale: o.scale, color: o.color, parentId: o.parentId, visible: o.visible, shading: o.shading, modifiers: o.modifiers, seams: o.seams, uvLayout: o.uvLayout, mesh: o.mesh.toJSON() };
+      }),
+    };
+  },
+  loadScene(data) {
+    const objects = {}, order = [];
+    let maxId = 0;
+    data.objects.forEach((o) => {
+      const mesh = EditableMesh.fromJSON(o.mesh);
+      objects[o.id] = { ...o, mesh, shading: o.shading || 'flat', modifiers: o.modifiers || [], seams: o.seams || [], uvLayout: o.uvLayout || null };
+      order.push(o.id);
+      maxId = Math.max(maxId, o.id);
+    });
+    _nextObjId = maxId + 1;
+    set({ objects, order, selectedIds: [], activeId: null, mode: 'object' });
+  },
+}));
+
+// ---------------------------------------------------------------------
+// viewport/SceneManager.js
+// ---------------------------------------------------------------------
+class SceneManager {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x1d1d1d);
+    this.camera = new THREE.PerspectiveCamera(50, 1, 0.05, 5000);
+    this.target = new THREE.Vector3(0, 0, 0);
+    this.spherical = new THREE.Spherical(10, Math.PI / 3, Math.PI / 4);
+    this._updateCameraFromSpherical();
+    this.grid = new THREE.GridHelper(20, 20, 0x555555, 0x333333);
+    this.scene.add(this.grid);
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x303030, 1.1);
+    this.scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+    dir.position.set(5, 10, 7);
+    this.scene.add(dir);
+    this.objectGroup = new THREE.Group();
+    this.scene.add(this.objectGroup);
+    this.gizmo = new TransformControls(this.camera, this.renderer.domElement);
+    this.gizmo.setSpace('local');
+    this.scene.add(this.gizmo.getHelper ? this.gizmo.getHelper() : this.gizmo);
+    this.navScheme = 'blender';
+    this.wireframe = false; // toggled by the Z key (Blender's shading pie, simplified to a direct toggle here)
+    this._bindInput();
+    this.meshObjects = new Map();
+    this.raycaster = new THREE.Raycaster();
+    this._displayMeshCache = new Map();
+
+    this.editOverlay = new THREE.Group();
+    this.scene.add(this.editOverlay);
+    this.vertPoints = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ size: 6, sizeAttenuation: false, vertexColors: true }));
+    this.edgeLines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ vertexColors: true }));
+    this.faceHighlight = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xe88235, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthTest: true }));
+    this.editOverlay.add(this.edgeLines, this.vertPoints, this.faceHighlight);
+    this.editOverlay.visible = false;
+  }
+  setNavScheme(scheme) { this.navScheme = scheme; }
+  setWireframe(v) { this.wireframe = v; }
+  _updateCameraFromSpherical() {
+    const pos = new THREE.Vector3().setFromSpherical(this.spherical).add(this.target);
+    this.camera.position.copy(pos);
+    this.camera.lookAt(this.target);
+  }
+  _bindInput() {
+    const el = this.renderer.domElement;
+    let dragging = null, last = { x: 0, y: 0 };
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+    el.addEventListener('mousedown', (e) => {
+      const isMiddle = e.button === 1;
+      const isLeftOrbitScheme = this.navScheme === 'standard' && e.button === 0;
+      if (isMiddle || isLeftOrbitScheme) { dragging = e.shiftKey ? 'pan' : 'orbit'; last = { x: e.clientX, y: e.clientY }; e.preventDefault(); }
+    });
+    window.addEventListener('mouseup', () => (dragging = null));
+    window.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - last.x, dy = e.clientY - last.y;
+      last = { x: e.clientX, y: e.clientY };
+      if (dragging === 'orbit') {
+        this.spherical.theta -= dx * 0.006;
+        this.spherical.phi = THREE.MathUtils.clamp(this.spherical.phi - dy * 0.006, 0.05, Math.PI - 0.05);
+        this._updateCameraFromSpherical();
+      } else if (dragging === 'pan') {
+        const panSpeed = this.spherical.radius * 0.0015;
+        const dirV = new THREE.Vector3();
+        this.camera.getWorldDirection(dirV);
+        const right = new THREE.Vector3().crossVectors(dirV, this.camera.up).normalize();
+        const up = new THREE.Vector3().copy(this.camera.up).applyQuaternion(this.camera.quaternion);
+        this.target.addScaledVector(right, -dx * panSpeed);
+        this.target.addScaledVector(up, dy * panSpeed);
+        this._updateCameraFromSpherical();
+      }
+    });
+    el.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      this.spherical.radius = THREE.MathUtils.clamp(this.spherical.radius * (1 + Math.sign(e.deltaY) * 0.1), 0.5, 500);
+      this._updateCameraFromSpherical();
+    }, { passive: false });
+  }
+  setNumpadView(key, ctrl) {
+    const dist = this.spherical.radius;
+    const views = { 1: { theta: 0, phi: Math.PI / 2 }, 3: { theta: Math.PI / 2, phi: Math.PI / 2 }, 7: { theta: 0, phi: 0.001 } };
+    const v = views[key];
+    if (!v) return;
+    this.spherical.theta = ctrl ? v.theta + Math.PI : v.theta;
+    this.spherical.phi = ctrl && key === 7 ? Math.PI - 0.001 : v.phi;
+    this.spherical.radius = dist;
+    this._updateCameraFromSpherical();
+  }
+  resize(width, height) {
+    this.renderer.setSize(width, height, false);
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+  }
+  _getDisplayMesh(obj) {
+    const modKey = JSON.stringify(obj.modifiers || []);
+    const cacheKey = `${obj.mesh.rev}:${modKey}`;
+    const cached = this._displayMeshCache.get(obj.id);
+    if (cached && cached.key === cacheKey) return cached.mesh;
+    const evaluated = obj.modifiers && obj.modifiers.length ? evaluateModifierStack(obj.mesh, obj.modifiers) : obj.mesh;
+    this._displayMeshCache.set(obj.id, { key: cacheKey, mesh: evaluated });
+    return evaluated;
+  }
+  syncObjects(objectsById, order, selectedIds) {
+    const seen = new Set();
+    order.forEach((id) => {
+      const data = objectsById[id];
+      seen.add(id);
+      const displayMesh = this._getDisplayMesh(data);
+      const smooth = data.shading === 'smooth';
+      const dirtyKey = `${displayMesh.rev}:${smooth}`;
+      let mesh = this.meshObjects.get(id);
+      if (!mesh) {
+        const geom = displayMesh.toBufferGeometry({ uvLayout: data.uvLayout, smooth });
+        const mat = new THREE.MeshStandardMaterial({ color: data.color, roughness: 0.7, metalness: 0.05 });
+        mesh = new THREE.Mesh(geom, mat);
+        mesh.userData.objId = id;
+        this.objectGroup.add(mesh);
+        this.meshObjects.set(id, mesh);
+      }
+      if (mesh.userData.meshRef !== displayMesh || mesh.userData.dirtyKey !== dirtyKey) {
+        mesh.geometry.dispose();
+        mesh.geometry = displayMesh.toBufferGeometry({ uvLayout: data.uvLayout, smooth });
+        mesh.userData.meshRef = displayMesh;
+        mesh.userData.dirtyKey = dirtyKey;
+      }
+      mesh.position.set(...data.position);
+      mesh.rotation.set(...data.rotation);
+      mesh.scale.set(...data.scale);
+      mesh.material.color.set(data.color);
+      mesh.material.emissive.set(selectedIds.includes(id) ? 0x333300 : 0x000000);
+      mesh.material.wireframe = this.wireframe;
+    });
+    for (const [id, mesh] of this.meshObjects) {
+      if (!seen.has(id)) { this.objectGroup.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); this.meshObjects.delete(id); this._displayMeshCache.delete(id); }
+    }
+  }
+  updateEditOverlay(obj, editSelectMode, editSelection, seamKeys = []) {
+    if (!obj) { this.editOverlay.visible = false; return; }
+    const mesh3 = this.meshObjects.get(obj.id);
+    if (!mesh3) { this.editOverlay.visible = false; return; }
+    this.editOverlay.visible = true;
+    this.editOverlay.position.copy(mesh3.position);
+    this.editOverlay.rotation.copy(mesh3.rotation);
+    this.editOverlay.scale.copy(mesh3.scale);
+    const editableMesh = obj.mesh;
+    const seamSet = new Set(seamKeys);
+    const selectedVerts = new Set(editSelection.verts);
+    const selectedFaces = new Set(editSelection.faces);
+    const selectedEdges = new Set(editSelection.edges);
+
+    const vertPositions = [], vertColors = [];
+    editableMesh.vertices.forEach((v, vi) => {
+      vertPositions.push(v[0], v[1], v[2]);
+      const isSel = editSelectMode === 'vertex' && selectedVerts.has(vi);
+      vertColors.push(...(isSel ? [1, 0.55, 0.1] : [0.05, 0.05, 0.05]));
+    });
+    this.vertPoints.geometry.dispose();
+    this.vertPoints.geometry = new THREE.BufferGeometry();
+    this.vertPoints.geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertPositions, 3));
+    this.vertPoints.geometry.setAttribute('color', new THREE.Float32BufferAttribute(vertColors, 3));
+    this.vertPoints.visible = editSelectMode === 'vertex';
+
+    const edgePositions = [], edgeColors = [];
+    editableMesh.edgeMap().forEach((edge, key) => {
+      const a = editableMesh.vertices[edge.a], b = editableMesh.vertices[edge.b];
+      edgePositions.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+      let color = [0.25, 0.25, 0.25];
+      if (seamSet.has(key)) color = [0.9, 0.1, 0.4];
+      if (editSelectMode === 'edge' && selectedEdges.has(key)) color = [1, 0.55, 0.1];
+      edgeColors.push(...color, ...color);
+    });
+    this.edgeLines.geometry.dispose();
+    this.edgeLines.geometry = new THREE.BufferGeometry();
+    this.edgeLines.geometry.setAttribute('position', new THREE.Float32BufferAttribute(edgePositions, 3));
+    this.edgeLines.geometry.setAttribute('color', new THREE.Float32BufferAttribute(edgeColors, 3));
+
+    if (editSelectMode === 'face' && selectedFaces.size) {
+      const facePositions = [];
+      selectedFaces.forEach((fi) => {
+        const f = editableMesh.faces[fi];
+        for (let i = 1; i < f.length - 1; i++) {
+          const a = editableMesh.vertices[f[0]], b = editableMesh.vertices[f[i]], c = editableMesh.vertices[f[i + 1]];
+          facePositions.push(...a, ...b, ...c);
+        }
+      });
+      this.faceHighlight.geometry.dispose();
+      this.faceHighlight.geometry = new THREE.BufferGeometry();
+      this.faceHighlight.geometry.setAttribute('position', new THREE.Float32BufferAttribute(facePositions, 3));
+      this.faceHighlight.geometry.computeVertexNormals();
+      this.faceHighlight.visible = true;
+    } else {
+      this.faceHighlight.visible = false;
+    }
+  }
+  attachGizmo(objId, mode, onDragStart, onDragChange, onDragEnd) {
+    const mesh = this.meshObjects.get(objId);
+    if (!mesh) { this.gizmo.detach(); return; }
+    this.gizmo.setMode(mode);
+    this.gizmo.attach(mesh);
+    this.gizmo.removeEventListener('dragging-changed', this._dragHandler);
+    this._dragHandler = (e) => (e.value ? onDragStart() : onDragEnd());
+    this.gizmo.addEventListener('dragging-changed', this._dragHandler);
+    this.gizmo.removeEventListener('change', this._changeHandler);
+    this._changeHandler = () => onDragChange(mesh);
+    this.gizmo.addEventListener('change', this._changeHandler);
+  }
+  detachGizmo() { this.gizmo.detach(); }
+  pickObject(ndcX, ndcY) {
+    this.raycaster.setFromCamera({ x: ndcX, y: ndcY }, this.camera);
+    const hits = this.raycaster.intersectObjects([...this.meshObjects.values()], false);
+    return hits.length ? hits[0].object.userData.objId : null;
+  }
+  raycastForSculpt(objId, ndcX, ndcY) {
+    const mesh3 = this.meshObjects.get(objId);
+    if (!mesh3) return null;
+    this.raycaster.setFromCamera({ x: ndcX, y: ndcY }, this.camera);
+    const hits = this.raycaster.intersectObject(mesh3, false);
+    if (!hits.length) return null;
+    const hit = hits[0];
+    const localPoint = mesh3.worldToLocal(hit.point.clone());
+    const invRot = new THREE.Matrix4().extractRotation(mesh3.matrixWorld).invert();
+    const localNormal = hit.face.normal.clone().applyMatrix4(invRot).normalize();
+    return { point: localPoint, normal: localNormal };
+  }
+  render() { this.renderer.render(this.scene, this.camera); }
+  dispose() { this.gizmo.dispose(); this.renderer.dispose(); }
+}
+
+// ---------------------------------------------------------------------
+// io/project.js (browser-only fallback path)
+// ---------------------------------------------------------------------
+function downloadBlob(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+async function saveProject() {
+  const data = useStore.getState().serializeScene();
+  downloadBlob(JSON.stringify(data, null, 2), 'untitled.blite.json', 'application/json');
+}
+async function openProject() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = '.json';
+    input.onchange = () => {
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = () => { useStore.getState().loadScene(JSON.parse(reader.result)); resolve(); };
+      reader.readAsText(file);
+    };
+    input.click();
+  });
+}
+let autosaveTimer = null;
+function startAutosave(intervalMs = 30000) {
+  stopAutosave();
+  autosaveTimer = setInterval(() => { localStorage.setItem('blite-autosave', JSON.stringify(useStore.getState().serializeScene())); }, intervalMs);
+}
+function stopAutosave() { if (autosaveTimer) clearInterval(autosaveTimer); }
+async function recoverAutosaveIfPresent() {
+  const content = localStorage.getItem('blite-autosave');
+  if (!content) return false;
+  if (!window.confirm('An autosaved session was found. Restore it?')) return false;
+  useStore.getState().loadScene(JSON.parse(content));
+  return true;
+}
+
+// ---------------------------------------------------------------------
+// io/exporters.js — bakes the modifier stack into exported geometry
+// ---------------------------------------------------------------------
+function buildExportGroup() {
+  const s = useStore.getState();
+  const group = new THREE.Group();
+  s.order.forEach((id) => {
+    const o = s.objects[id];
+    const evaluated = o.modifiers && o.modifiers.length ? evaluateModifierStack(o.mesh, o.modifiers) : o.mesh;
+    const smooth = o.shading === 'smooth';
+    const geom = evaluated.toBufferGeometry({ uvLayout: smooth ? null : o.uvLayout, smooth });
+    const mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: o.color }));
+    mesh.name = o.name;
+    mesh.position.set(...o.position); mesh.rotation.set(...o.rotation); mesh.scale.set(...o.scale);
+    group.add(mesh);
+  });
+  return group;
+}
+async function exportGLTF(binary = false) {
+  const group = buildExportGroup();
+  const exporter = new GLTFExporter();
+  const result = await new Promise((resolve, reject) => exporter.parse(group, resolve, reject, { binary }));
+  const isBinary = result instanceof ArrayBuffer;
+  const data = isBinary ? result : JSON.stringify(result, null, 2);
+  downloadBlob(data, isBinary ? 'scene.glb' : 'scene.gltf', isBinary ? 'application/octet-stream' : 'application/json');
+}
+async function exportOBJ() {
+  downloadBlob(new OBJExporter().parse(buildExportGroup()), 'scene.obj', 'text/plain');
+}
+async function exportFBX() {
+  throw new Error('FBX export is not implemented — three.js has no FBX exporter. Use glTF or OBJ instead.');
+}
+
+// ---------------------------------------------------------------------
+// ui/UVEditor
+// ---------------------------------------------------------------------
+function UVEditor() {
+  const activeId = useStore((s) => s.activeId);
+  const objects = useStore((s) => s.objects);
+  const obj = activeId ? objects[activeId] : null;
+  const size = 200, checkerCells = 8;
+  if (!obj) return html`<div className="empty-hint">No active object</div>`;
+  if (!obj.uvLayout) return html`<div className="empty-hint">No UVs yet — use UV → Unwrap (Basic Planar)</div>`;
+  const lines = [];
+  Object.entries(obj.uvLayout).forEach(([faceIdx, corners]) => {
+    for (let i = 0; i < corners.length; i++) {
+      const [u1, v1] = corners[i], [u2, v2] = corners[(i + 1) % corners.length];
+      lines.push(html`<line key=${`${faceIdx}-${i}`} x1=${u1 * size} y1=${(1 - v1) * size} x2=${u2 * size} y2=${(1 - v2) * size} stroke="#39ff88" strokeWidth="1" />`);
+    }
+  });
+  const checkerRects = [];
+  const cell = size / checkerCells;
+  for (let y = 0; y < checkerCells; y++) for (let x = 0; x < checkerCells; x++) { if ((x + y) % 2 === 0) continue; checkerRects.push(html`<rect key=${`${x}-${y}`} x=${x * cell} y=${y * cell} width=${cell} height=${cell} fill="#3a3a3a" />`); }
+  return html`<div>
+    <svg width=${size} height=${size} style=${{ background: '#232323', display: 'block' }}>${checkerRects}${lines}</svg>
+    <div className="empty-hint" style=${{ marginTop: 6 }}>Basic planar unwrap — view-only (no drag-to-edit UVs).</div>
+  </div>`;
+}
+
+// ---------------------------------------------------------------------
+// ui/MenuBar
+// ---------------------------------------------------------------------
+function Dropdown({ label, items }) {
+  const [open, setOpen] = useState(false);
+  return html`<div className="menu-item" onMouseLeave=${() => setOpen(false)}>
+    <button className="menu-label" onClick=${() => setOpen((o) => !o)}>${label}</button>
+    ${open && html`<div className="menu-dropdown">
+      ${items.map((it, i) => it === '---'
+        ? html`<div className="menu-sep" key=${i} />`
+        : html`<button className="menu-dropdown-item" key=${i} onClick=${() => { it.action(); setOpen(false); }}>
+            ${it.label}
+            ${it.shortcut && html`<span className="menu-shortcut">${it.shortcut}</span>`}
+          </button>`)}
+    </div>`}
+  </div>`;
+}
+function MenuBar() {
+  const addPrimitive = useStore((s) => s.addPrimitive);
+  const selectedIds = useStore((s) => s.selectedIds);
+  const deleteObjects = useStore((s) => s.deleteObjects);
+  const duplicateObjects = useStore((s) => s.duplicateObjects);
+  const undo = useStore((s) => s.undo);
+  const redo = useStore((s) => s.redo);
+  const setSelectedIds = useStore((s) => s.setSelectedIds);
+  const order = useStore((s) => s.order);
+  const setMode = useStore((s) => s.setMode);
+  const mode = useStore((s) => s.mode);
+  const activeId = useStore((s) => s.activeId);
+  const editSelectMode = useStore((s) => s.editSelectMode);
+  const editSelection = useStore((s) => s.editSelection);
+  const toggleSeams = useStore((s) => s.toggleSeams);
+  const computeUnwrap = useStore((s) => s.computeUnwrap);
+  const toast = (msg) => window.dispatchEvent(new CustomEvent('blite:toast', { detail: msg }));
+
+  const fileItems = [
+    { label: 'New Project', action: () => window.location.reload() },
+    { label: 'Open…', action: openProject },
+    { label: 'Save…', action: saveProject, shortcut: 'Ctrl+S' },
+    '---',
+    { label: 'Export glTF (.gltf)', action: () => exportGLTF(false) },
+    { label: 'Export glTF Binary (.glb)', action: () => exportGLTF(true) },
+    { label: 'Export OBJ (.obj)', action: exportOBJ },
+    { label: 'Export FBX (.fbx)', action: () => exportFBX().catch((e) => toast(e.message)) },
+  ];
+  const editItems = [
+    { label: 'Undo', action: undo, shortcut: 'Ctrl+Z' },
+    { label: 'Redo', action: redo, shortcut: 'Ctrl+Shift+Z' },
+    '---',
+    { label: 'Duplicate', action: () => duplicateObjects(selectedIds), shortcut: 'Shift+D' },
+    { label: 'Delete', action: () => deleteObjects(selectedIds), shortcut: 'X' },
+  ];
+  const addItems = Object.keys(PRIMITIVES).map((key) => ({ label: key.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase()), action: () => addPrimitive(PRIMITIVES[key], key) }));
+  const selectItems = [
+    { label: 'Select All', action: () => setSelectedIds(order) },
+    { label: 'Select None', action: () => setSelectedIds([]) },
+    { label: 'Invert Selection', action: () => setSelectedIds(order.filter((id) => !selectedIds.includes(id))) },
+  ];
+  const viewItems = [
+    { label: 'Front (Numpad 1)', action: () => window.dispatchEvent(new CustomEvent('blite:view', { detail: 1 })) },
+    { label: 'Right (Numpad 3)', action: () => window.dispatchEvent(new CustomEvent('blite:view', { detail: 3 })) },
+    { label: 'Top (Numpad 7)', action: () => window.dispatchEvent(new CustomEvent('blite:view', { detail: 7 })) },
+  ];
+  const modeItems = [
+    { label: 'Object Mode', action: () => setMode('object'), shortcut: mode === 'object' ? '●' : '' },
+    { label: 'Edit Mode', action: () => setMode('edit'), shortcut: mode === 'edit' ? '●' : 'Tab' },
+    { label: 'Sculpt Mode', action: () => setMode('sculpt'), shortcut: mode === 'sculpt' ? '●' : '' },
+  ];
+  const uvItems = [
+    { label: 'Mark Seam', shortcut: 'Shift+E', action: () => {
+      if (!activeId || editSelectMode !== 'edge' || !editSelection.edges.length) { toast('Select edges in Edge select mode first (Edit Mode, press 2).'); return; }
+      toggleSeams(activeId, editSelection.edges);
+    } },
+    { label: 'Unwrap (Basic Planar)', action: () => { if (!activeId) { toast('Select an object first.'); return; } computeUnwrap(activeId); } },
+  ];
+  return html`<div className="menu-bar">
+    <${Dropdown} label="File" items=${fileItems} />
+    <${Dropdown} label="Edit" items=${editItems} />
+    <${Dropdown} label="Add" items=${addItems} />
+    <${Dropdown} label="Select" items=${selectItems} />
+    <${Dropdown} label="View" items=${viewItems} />
+    <${Dropdown} label="Mode" items=${modeItems} />
+    <${Dropdown} label="UV" items=${uvItems} />
+    <div className="menu-bar-title">BlenderLite</div>
+  </div>`;
+}
+
+// ---------------------------------------------------------------------
+// ui/Toolbar
+// ---------------------------------------------------------------------
+const OBJECT_TOOLS = [ { key: 'translate', label: 'Move', icon: '⊹', hint: 'G' }, { key: 'rotate', label: 'Rotate', icon: '↻', hint: 'R' }, { key: 'scale', label: 'Scale', icon: '⤢', hint: 'S' } ];
+const EDIT_TOOLS = [ { key: 'extrude', label: 'Extrude', icon: '⬆', hint: 'E' }, { key: 'inset', label: 'Inset', icon: '▣', hint: 'I' }, { key: 'bevel', label: 'Bevel', icon: '◤', hint: 'Ctrl+B' }, { key: 'loopcut', label: 'Loop Cut', icon: '≡', hint: 'Ctrl+R', stub: true }, { key: 'knife', label: 'Knife', icon: '⁄', hint: 'K', stub: true } ];
+const SELECT_MODES = [ { key: 'vertex', label: 'V', hint: 'Vertex (1)' }, { key: 'edge', label: 'E', hint: 'Edge (2)' }, { key: 'face', label: 'F', hint: 'Face (3)' } ];
+const SCULPT_BRUSHES = [ { key: 'draw', label: 'Draw' }, { key: 'smooth', label: 'Smooth' }, { key: 'inflate', label: 'Inflate' }, { key: 'grab', label: 'Grab' } ];
+function Toolbar() {
+  const mode = useStore((s) => s.mode);
+  const activeId = useStore((s) => s.activeId);
+  const editSelectMode = useStore((s) => s.editSelectMode);
+  const setEditSelectMode = useStore((s) => s.setEditSelectMode);
+  const editSelection = useStore((s) => s.editSelection);
+  const applyMeshOp = useStore((s) => s.applyMeshOp);
+  const gizmoMode = useStore((s) => s.gizmoMode);
+  const setGizmoMode = useStore((s) => s.setGizmoMode);
+  const sculptBrush = useStore((s) => s.sculptBrush);
+  const setSculptBrush = useStore((s) => s.setSculptBrush);
+  const sculptRadius = useStore((s) => s.sculptRadius);
+  const setSculptRadius = useStore((s) => s.setSculptRadius);
+  const sculptStrength = useStore((s) => s.sculptStrength);
+  const setSculptStrength = useStore((s) => s.setSculptStrength);
+  const toast = (msg) => window.dispatchEvent(new CustomEvent('blite:toast', { detail: msg }));
+
+  if (mode === 'sculpt') {
+    return html`<div className="toolbar toolbar-sculpt">
+      ${SCULPT_BRUSHES.map((b) => html`<button key=${b.key} className="toolbar-btn brush-btn ${sculptBrush === b.key ? 'active' : ''}" title=${b.label} onClick=${() => setSculptBrush(b.key)}>${b.label[0]}</button>`)}
+      <div className="toolbar-slider" title="Radius: ${sculptRadius.toFixed(2)}"><input type="range" min="0.05" max="2" step="0.05" value=${sculptRadius} onChange=${(e) => setSculptRadius(parseFloat(e.target.value))} /></div>
+      <div className="toolbar-slider" title="Strength: ${sculptStrength.toFixed(2)}"><input type="range" min="0.05" max="1" step="0.05" value=${sculptStrength} onChange=${(e) => setSculptStrength(parseFloat(e.target.value))} /></div>
+    </div>`;
+  }
+  if (mode === 'object') {
+    return html`<div className="toolbar">
+      ${OBJECT_TOOLS.map((t) => html`<button key=${t.key} className="toolbar-btn ${gizmoMode === t.key ? 'active' : ''}" title="${t.label} (${t.hint})" onClick=${() => setGizmoMode(t.key)}><span>${t.icon}</span></button>`)}
+    </div>`;
+  }
+  const runEditTool = (key) => {
+    if (key === 'inset' && activeId && editSelection.faces.length) { applyMeshOp(activeId, (mesh) => mesh.insetFaces(editSelection.faces, 0.25), 'Inset Faces'); return; }
+    if (key === 'bevel') { toast('Select edges (press 2 for Edge select), then hold Ctrl+B and move the mouse to set width.'); return; }
+    if (['loopcut', 'knife'].includes(key)) { toast('Not implemented — needs a true half-edge mesh structure.'); return; }
+    toast(`Press ${EDIT_TOOLS.find((t) => t.key === key)?.hint} in the viewport for ${key}.`);
+  };
+  return html`<div className="toolbar">
+    <div className="select-mode-row">
+      ${SELECT_MODES.map((m) => html`<button key=${m.key} className="toolbar-btn ${editSelectMode === m.key ? 'active' : ''}" title=${m.hint} onClick=${() => setEditSelectMode(m.key)}>${m.label}</button>`)}
+    </div>
+    ${EDIT_TOOLS.map((t) => html`<button key=${t.key} className="toolbar-btn ${t.stub ? 'stub' : ''}" title="${t.label} (${t.hint})" onClick=${() => runEditTool(t.key)}><span>${t.icon}</span></button>`)}
+  </div>`;
+}
+
+// ---------------------------------------------------------------------
+// ui/Outliner
+// ---------------------------------------------------------------------
+function Outliner() {
+  const order = useStore((s) => s.order);
+  const objects = useStore((s) => s.objects);
+  const selectedIds = useStore((s) => s.selectedIds);
+  const setSelectedIds = useStore((s) => s.setSelectedIds);
+  const roots = order.filter((id) => !objects[id].parentId);
+  const childrenOf = (id) => order.filter((oid) => objects[oid].parentId === id);
+  const renderNode = (id, depth) => html`<div key=${id}>
+    <div className="outliner-row ${selectedIds.includes(id) ? 'selected' : ''}" style=${{ paddingLeft: 8 + depth * 14 }}
+      onClick=${(e) => { if (e.shiftKey) setSelectedIds(selectedIds.includes(id) ? selectedIds.filter((i) => i !== id) : [...selectedIds, id]); else setSelectedIds([id]); }}>
+      <span className="outliner-icon">◆</span>${objects[id].name}
+    </div>
+    ${childrenOf(id).map((cid) => renderNode(cid, depth + 1))}
+  </div>`;
+  return html`<div className="panel outliner">
+    <div className="panel-title">Outliner</div>
+    <div>${roots.length === 0 ? html`<div className="empty-hint">Scene is empty — use Add menu</div>` : roots.map((id) => renderNode(id, 0))}</div>
+  </div>`;
+}
+
+// ---------------------------------------------------------------------
+// ui/PropertiesPanel
+// ---------------------------------------------------------------------
+function NumberField({ label, value, onChange }) {
+  return html`<label className="num-field"><span>${label}</span>
+    <input type="number" step="0.1" value=${value.toFixed(3)} onChange=${(e) => onChange(parseFloat(e.target.value) || 0)} />
+  </label>`;
+}
+const MODIFIER_TYPES = ['mirror', 'array', 'solidify', 'subdivision'];
+function ModifierParamFields({ mod, onUpdate }) {
+  if (mod.type === 'mirror') {
+    return html`<div>
+      <label className="num-field"><span>Axis</span>
+        <select value=${mod.params.axis} onChange=${(e) => onUpdate({ axis: e.target.value })}>
+          <option value="x">X</option><option value="y">Y</option><option value="z">Z</option>
+        </select>
+      </label>
+      <label style=${{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <input type="checkbox" checked=${mod.params.merge} onChange=${(e) => onUpdate({ merge: e.target.checked })} /> Merge on seam
+      </label>
+    </div>`;
+  }
+  if (mod.type === 'array') {
+    return html`<div>
+      <${NumberField} label="Count" value=${mod.params.count} onChange=${(v) => onUpdate({ count: Math.max(1, Math.round(v)) })} />
+      <div className="vec3-row">
+        ${['X', 'Y', 'Z'].map((ax, i) => html`<${NumberField} key=${ax} label="Offset ${ax}" value=${mod.params.offset[i]} onChange=${(v) => { const next = mod.params.offset.slice(); next[i] = v; onUpdate({ offset: next }); }} />`)}
+      </div>
+    </div>`;
+  }
+  if (mod.type === 'solidify') return html`<${NumberField} label="Thickness" value=${mod.params.thickness} onChange=${(v) => onUpdate({ thickness: v })} />`;
+  if (mod.type === 'subdivision') return html`<${NumberField} label="Levels (capped at 2)" value=${mod.params.levels} onChange=${(v) => onUpdate({ levels: Math.max(0, Math.min(2, Math.round(v))) })} />`;
+  return null;
+}
+function PropertiesPanel() {
+  const [tab, setTab] = useState('object');
+  const [addPick, setAddPick] = useState('mirror');
+  const activeId = useStore((s) => s.activeId);
+  const objects = useStore((s) => s.objects);
+  const beginTransform = useStore((s) => s.beginTransform);
+  const updateTransformLive = useStore((s) => s.updateTransformLive);
+  const commitTransform = useStore((s) => s.commitTransform);
+  const setColor = useStore((s) => s.setColor);
+  const setShading = useStore((s) => s.setShading);
+  const addModifier = useStore((s) => s.addModifier);
+  const removeModifier = useStore((s) => s.removeModifier);
+  const moveModifier = useStore((s) => s.moveModifier);
+  const updateModifierParams = useStore((s) => s.updateModifierParams);
+  const toggleModifierEnabled = useStore((s) => s.toggleModifierEnabled);
+  const applyModifier = useStore((s) => s.applyModifier);
+  const obj = activeId ? objects[activeId] : null;
+  const setVec = (field, idx, val) => {
+    if (!obj) return;
+    beginTransform();
+    const next = obj[field].slice();
+    next[idx] = val;
+    updateTransformLive(activeId, { [field]: next });
+    commitTransform();
+  };
+  return html`<div className="panel properties">
+    <div className="tabs">
+      <button className=${tab === 'object' ? 'active' : ''} onClick=${() => setTab('object')}>Object</button>
+      <button className=${tab === 'modifiers' ? 'active' : ''} onClick=${() => setTab('modifiers')}>Modifiers</button>
+      <button className=${tab === 'material' ? 'active' : ''} onClick=${() => setTab('material')}>Material</button>
+      <button className=${tab === 'uv' ? 'active' : ''} onClick=${() => setTab('uv')}>UV</button>
+    </div>
+    ${!obj && html`<div className="empty-hint">No active object</div>`}
+    ${obj && tab === 'object' && html`<div className="props-section">
+      <div className="props-group-title">Transform</div>
+      <div className="vec3-row">${['X', 'Y', 'Z'].map((ax, i) => html`<${NumberField} key=${ax} label="Loc ${ax}" value=${obj.position[i]} onChange=${(v) => setVec('position', i, v)} />`)}</div>
+      <div className="vec3-row">${['X', 'Y', 'Z'].map((ax, i) => html`<${NumberField} key=${ax} label="Rot ${ax}" value=${obj.rotation[i]} onChange=${(v) => setVec('rotation', i, v)} />`)}</div>
+      <div className="vec3-row">${['X', 'Y', 'Z'].map((ax, i) => html`<${NumberField} key=${ax} label="Scl ${ax}" value=${obj.scale[i]} onChange=${(v) => setVec('scale', i, v)} />`)}</div>
+      <div className="props-group-title">Shading</div>
+      <div style=${{ display: 'flex', gap: 4 }}>
+        <button className=${obj.shading === 'flat' ? 'active' : ''} onClick=${() => setShading(activeId, 'flat')} style=${{ flex: 1 }}>Flat</button>
+        <button className=${obj.shading === 'smooth' ? 'active' : ''} onClick=${() => setShading(activeId, 'smooth')} style=${{ flex: 1 }}>Smooth</button>
+      </div>
+      <div className="empty-hint" style=${{ marginTop: 6 }}>Smooth shading drops per-corner UVs — export with Flat if you need both UVs and hard edges.</div>
+    </div>`}
+    ${obj && tab === 'modifiers' && html`<div className="props-section">
+      <div style=${{ display: 'flex', gap: 4, marginBottom: 8 }}>
+        <select value=${addPick} onChange=${(e) => setAddPick(e.target.value)} style=${{ flex: 1 }}>
+          ${MODIFIER_TYPES.map((t) => html`<option key=${t} value=${t}>${t[0].toUpperCase() + t.slice(1)}</option>`)}
+        </select>
+        <button onClick=${() => addModifier(activeId, addPick)}>+ Add</button>
+      </div>
+      ${obj.modifiers.length === 0 && html`<div className="empty-hint">No modifiers yet.</div>`}
+      ${obj.modifiers.map((mod, i) => html`<div key=${mod.id} className="mod-card">
+        <div className="mod-card-head">
+          <label style=${{ display: 'flex', gap: 4, alignItems: 'center', fontWeight: 600 }}>
+            <input type="checkbox" checked=${mod.enabled} onChange=${() => toggleModifierEnabled(activeId, mod.id)} />
+            ${mod.type[0].toUpperCase() + mod.type.slice(1)}
+          </label>
+          <div style=${{ display: 'flex', gap: 2 }}>
+            <button title="Move up" disabled=${i === 0} onClick=${() => moveModifier(activeId, mod.id, -1)}>↑</button>
+            <button title="Move down" disabled=${i === obj.modifiers.length - 1} onClick=${() => moveModifier(activeId, mod.id, 1)}>↓</button>
+            <button title="Remove" onClick=${() => removeModifier(activeId, mod.id)}>✕</button>
+          </div>
+        </div>
+        <${ModifierParamFields} mod=${mod} onUpdate=${(patch) => updateModifierParams(activeId, mod.id, patch)} />
+        <button style=${{ marginTop: 4, width: '100%' }} onClick=${() => applyModifier(activeId, mod.id)}>Apply</button>
+      </div>`)}
+      <div className="empty-hint">Subdivision here is a simplified quad-split, not Catmull-Clark — pair with Smooth Shading.</div>
+    </div>`}
+    ${obj && tab === 'material' && html`<div className="props-section">
+      <div className="props-group-title">Base Color</div>
+      <input type="color" value=${obj.color} onChange=${(e) => setColor(activeId, e.target.value)} />
+      <div className="empty-hint" style=${{ marginTop: 8 }}>No renderer/PBR preview by design — this just tints viewport shading.</div>
+    </div>`}
+    ${obj && tab === 'uv' && html`<div className="props-section"><${UVEditor} /></div>`}
+  </div>`;
+}
+
+// ---------------------------------------------------------------------
+// ui/StatusBar
+// ---------------------------------------------------------------------
+const MODE_LABELS = { object: 'Object Mode', edit: 'Edit Mode', sculpt: 'Sculpt Mode' };
+function StatusBar() {
+  const mode = useStore((s) => s.mode);
+  const activeId = useStore((s) => s.activeId);
+  const objects = useStore((s) => s.objects);
+  const editSelectMode = useStore((s) => s.editSelectMode);
+  const editSelection = useStore((s) => s.editSelection);
+  const sculptBrush = useStore((s) => s.sculptBrush);
+  const sculptRadius = useStore((s) => s.sculptRadius);
+  const sculptStrength = useStore((s) => s.sculptStrength);
+  const obj = activeId ? objects[activeId] : null;
+  const verts = obj ? obj.mesh.vertices.length : 0;
+  const faces = obj ? obj.mesh.faces.length : 0;
+  const edges = obj ? obj.mesh.edgeMap().size : 0;
+  const modCount = obj ? obj.modifiers.filter((m) => m.enabled).length : 0;
+  return html`<div className="status-bar">
+    <span className="status-mode">${MODE_LABELS[mode] || mode}</span>
+    ${mode === 'edit' && html`<span>Select: ${editSelectMode}</span>`}
+    ${mode === 'sculpt' && html`<span>Brush: ${sculptBrush} · Radius ${sculptRadius.toFixed(2)} · Strength ${sculptStrength.toFixed(2)}</span>`}
+    ${obj ? html`<span>Verts ${verts} · Edges ${edges} · Faces ${faces}${modCount > 0 ? ` · ${modCount} modifier(s) (preview)` : ''}${mode === 'edit' ? ` · Selected: ${editSelection.verts.length}V ${editSelection.edges.length}E ${editSelection.faces.length}F` : ''}</span>` : html`<span>No active object</span>`}
+  </div>`;
+}
+
+// ---------------------------------------------------------------------
+// viewport/Viewport
+// ---------------------------------------------------------------------
+function distToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  let t = lenSq > 0 ? ((px - ax) * dx + (py - ay) * dy) / lenSq : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+function useModalTransform(canvasRef) {
+  const modal = useRef({ active: false });
+  const [hint, setHint] = useState('');
+  const finish = (commit) => {
+    if (!modal.current.active) return;
+    if (commit) modal.current.apply({ finalize: true }); else modal.current.cancel();
+    modal.current = { active: false };
+    setHint('');
+  };
+  const start = (kind, apply, cancel) => {
+    modal.current = { active: true, kind, axis: null, numericStr: '', apply, cancel, startX: 0, startY: 0, started: false };
+    setHint(`${kind.toUpperCase()} — move mouse, X/Y/Z to lock axis, type number, Enter/click to confirm, Esc to cancel`);
+  };
+  useEffect(() => {
+    const onMove = (e) => {
+      const m = modal.current;
+      if (!m.active) return;
+      if (!m.started) { m.startX = e.clientX; m.startY = e.clientY; m.started = true; }
+      const dx = e.clientX - m.startX, dy = e.clientY - m.startY;
+      m.apply({ dx, dy, axis: m.axis, numeric: m.numericStr ? parseFloat(m.numericStr) : null, ctrlKey: e.ctrlKey });
+    };
+    const onDown = (e) => { const m = modal.current; if (!m.active) return; if (e.button === 0) finish(true); if (e.button === 2) finish(false); };
+    const onKey = (e) => {
+      const m = modal.current;
+      if (!m.active) return;
+      if (e.key === 'Escape') return finish(false);
+      if (e.key === 'Enter') return finish(true);
+      if (['x', 'X', 'y', 'Y', 'z', 'Z'].includes(e.key)) { m.axis = e.key.toLowerCase(); setHint((h) => h + ` [axis: ${m.axis}]`); return; }
+      if (/^[0-9.\-]$/.test(e.key)) { m.numericStr += e.key; setHint(`typed: ${m.numericStr}`); return; }
+      if (e.key === 'Backspace') m.numericStr = m.numericStr.slice(0, -1);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mousedown', onDown); window.removeEventListener('keydown', onKey); };
+  }, []);
+  return { start, hint };
+}
+
+function Viewport() {
+  const canvasRef = useRef(null), wrapRef = useRef(null), smRef = useRef(null);
+  const [, forceRender] = useState(0);
+  const mode = useStore((s) => s.mode);
+  const setMode = useStore((s) => s.setMode);
+  const objects = useStore((s) => s.objects);
+  const selectedIds = useStore((s) => s.selectedIds);
+  const setSelectedIds = useStore((s) => s.setSelectedIds);
+  const activeId = useStore((s) => s.activeId);
+  const editSelectMode = useStore((s) => s.editSelectMode);
+  const editSelection = useStore((s) => s.editSelection);
+  const setEditSelection = useStore((s) => s.setEditSelection);
+  const deleteObjects = useStore((s) => s.deleteObjects);
+  const duplicateObjects = useStore((s) => s.duplicateObjects);
+  const beginTransform = useStore((s) => s.beginTransform);
+  const updateTransformLive = useStore((s) => s.updateTransformLive);
+  const commitTransform = useStore((s) => s.commitTransform);
+  const applyMeshOp = useStore((s) => s.applyMeshOp);
+  const undo = useStore((s) => s.undo);
+  const redo = useStore((s) => s.redo);
+  const gizmoMode = useStore((s) => s.gizmoMode);
+  const setGizmoMode = useStore((s) => s.setGizmoMode);
+  const viewportShading = useStore((s) => s.viewportShading);
+  const setViewportShading = useStore((s) => s.setViewportShading);
+  const setColor = useStore((s) => s.setColor);
+  const addPrimitive = useStore((s) => s.addPrimitive);
+  const toggleSeams = useStore((s) => s.toggleSeams);
+  const beginSculptStroke = useStore((s) => s.beginSculptStroke);
+  const applySculptSample = useStore((s) => s.applySculptSample);
+  const commitSculptStroke = useStore((s) => s.commitSculptStroke);
+  const { start: startModal, hint } = useModalTransform(canvasRef);
+  const sculptingRef = useRef(false);
+  const lastSculptSampleRef = useRef(0);
+  const lastMouseRef = useRef({ x: 200, y: 200 });
+  // Small cursor-anchored popups — Blender's Shift+A "Add" menu, Z shading
+  // pie, and (per your ask) a quick P color picker all pop up at the
+  // mouse position rather than living in the top menu bar.
+  const [addMenu, setAddMenu] = useState(null); // { x, y } | null
+  const [shadingMenu, setShadingMenu] = useState(null);
+  const [colorMenu, setColorMenu] = useState(null);
+
+  useEffect(() => {
+    const onMove = (e) => { lastMouseRef.current = { x: e.clientX, y: e.clientY }; };
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
+  }, []);
+
+  useEffect(() => {
+    const onEsc = (e) => { if (e.key === 'Escape') { setAddMenu(null); setShadingMenu(null); setColorMenu(null); } };
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
+  }, []);
+
+  useEffect(() => {
+    const sm = new SceneManager(canvasRef.current);
+    smRef.current = sm;
+    const resize = () => { const { clientWidth, clientHeight } = wrapRef.current; sm.resize(clientWidth, clientHeight); };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(wrapRef.current);
+    let raf;
+    const loop = () => {
+      const s = useStore.getState();
+      sm.syncObjects(s.objects, s.order, s.mode === 'object' ? s.selectedIds : []);
+      const activeObj = s.mode === 'edit' && s.activeId ? s.objects[s.activeId] : null;
+      sm.updateEditOverlay(activeObj, s.editSelectMode, s.editSelection, activeObj ? activeObj.seams : []);
+      sm.render();
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); sm.dispose(); };
+  }, []);
+
+  useEffect(() => {
+    const onView = (e) => smRef.current?.setNumpadView(e.detail, false);
+    window.addEventListener('blite:view', onView);
+    return () => window.removeEventListener('blite:view', onView);
+  }, []);
+
+  useEffect(() => {
+    const sm = smRef.current;
+    if (!sm) return;
+    if (mode !== 'object' || !activeId) { sm.detachGizmo(); return; }
+    sm.attachGizmo(activeId, gizmoMode,
+      () => beginTransform(),
+      (mesh) => updateTransformLive(activeId, { position: mesh.position.toArray(), rotation: [mesh.rotation.x, mesh.rotation.y, mesh.rotation.z], scale: mesh.scale.toArray() }),
+      () => commitTransform());
+  }, [mode, activeId, gizmoMode, beginTransform, updateTransformLive, commitTransform]);
+
+  useEffect(() => { smRef.current?.setWireframe(viewportShading === 'wireframe'); }, [viewportShading]);
+
+  // ---- Sculpt mode: mousedown starts a stroke, mousemove samples the
+  // active brush (throttled to ~60fps), mouseup commits one undo step. ----
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let lastLocalPoint = null;
+    const getNDC = (e) => { const rect = canvas.getBoundingClientRect(); return { x: ((e.clientX - rect.left) / rect.width) * 2 - 1, y: -((e.clientY - rect.top) / rect.height) * 2 + 1 }; };
+    const onDown = (e) => {
+      const s = useStore.getState();
+      if (s.mode !== 'sculpt' || !s.activeId || e.button !== 0) return;
+      sculptingRef.current = true;
+      beginSculptStroke(s.activeId);
+      const ndc = getNDC(e);
+      const hit = smRef.current.raycastForSculpt(s.activeId, ndc.x, ndc.y);
+      if (hit) { lastLocalPoint = hit.point.clone(); applySculptSample(s.activeId, { hitPoint: hit.point, hitNormal: hit.normal, grabDelta: null }); }
+    };
+    const onMove = (e) => {
+      if (!sculptingRef.current) return;
+      const now = performance.now();
+      if (now - lastSculptSampleRef.current < 16) return;
+      lastSculptSampleRef.current = now;
+      const s = useStore.getState();
+      if (s.mode !== 'sculpt' || !s.activeId) return;
+      const ndc = getNDC(e);
+      const hit = smRef.current.raycastForSculpt(s.activeId, ndc.x, ndc.y);
+      if (!hit) return;
+      let grabDelta = null;
+      if (s.sculptBrush === 'grab' && lastLocalPoint) grabDelta = hit.point.clone().sub(lastLocalPoint);
+      lastLocalPoint = hit.point.clone();
+      applySculptSample(s.activeId, { hitPoint: hit.point, hitNormal: hit.normal, grabDelta });
+    };
+    const onUp = () => {
+      if (!sculptingRef.current) return;
+      sculptingRef.current = false;
+      const s = useStore.getState();
+      if (s.activeId) commitSculptStroke(s.activeId);
+      lastLocalPoint = null;
+    };
+    canvas.addEventListener('mousedown', onDown);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { canvas.removeEventListener('mousedown', onDown); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, [beginSculptStroke, applySculptSample, commitSculptStroke]);
+
+  const onCanvasClick = (e) => {
+    if (addMenu || shadingMenu || colorMenu) { setAddMenu(null); setShadingMenu(null); setColorMenu(null); return; }
+    if (mode !== 'object') return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1, ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    const hitId = smRef.current.pickObject(ndcX, ndcY);
+    if (hitId == null) setSelectedIds([]);
+    else if (e.shiftKey) setSelectedIds(selectedIds.includes(hitId) ? selectedIds.filter((i) => i !== hitId) : [...selectedIds, hitId]);
+    else setSelectedIds([hitId]);
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'Tab') { e.preventDefault(); setMode(mode === 'object' ? 'edit' : 'object'); return; }
+      if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+      if (e.key === 'n' && !e.shiftKey) { window.dispatchEvent(new CustomEvent('blite:toggle-sidebar')); return; }
+      if (['1', '3', '7'].includes(e.key) && !e.shiftKey) { smRef.current.setNumpadView(parseInt(e.key, 10), e.ctrlKey); return; }
+
+      // Shift+A — Blender's "Add" popup, opened at the cursor instead of
+      // living only in the top menu bar. Always adds a new top-level
+      // object (doesn't merge primitives into the current edit-mode mesh —
+      // that's a real Blender behavior this simplifies away).
+      if (e.key === 'A' && e.shiftKey) { e.preventDefault(); setAddMenu({ x: lastMouseRef.current.x, y: lastMouseRef.current.y }); return; }
+
+      // Z — Blender's shading pie, simplified to a two-item popup
+      // (Solid / Wireframe) instead of the full pie with 4+ options.
+      if ((e.key === 'z' || e.key === 'Z') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); setShadingMenu({ x: lastMouseRef.current.x, y: lastMouseRef.current.y }); return; }
+
+      // P — quick color picker for the active object, popped up at the
+      // cursor (not a standard Blender shortcut, but this is what you
+      // asked for rather than Blender's actual P/"Separate").
+      if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey) {
+        e.preventDefault();
+        if (!activeId) { window.dispatchEvent(new CustomEvent('blite:toast', { detail: 'Select an object first.' })); return; }
+        setColorMenu({ x: lastMouseRef.current.x, y: lastMouseRef.current.y });
+        return;
+      }
+
+      // Shift+N — recalculate normals outward (fixes inside-out faces,
+      // common after hand-built low-poly modeling).
+      if (e.key === 'N' && e.shiftKey && activeId) {
+        applyMeshOp(activeId, (mesh) => mesh.recalculateNormalsOutward(), 'Recalculate Normals');
+        return;
+      }
+
+      if (mode === 'object') {
+        if (selectedIds.length === 0) return;
+        if (e.key === 'g' || e.key === 'r' || e.key === 's') {
+          const kind = { g: 'move', r: 'rotate', s: 'scale' }[e.key];
+          setGizmoMode({ move: 'translate', rotate: 'rotate', scale: 'scale' }[kind]);
+          beginTransform();
+          const initial = {};
+          selectedIds.forEach((id) => (initial[id] = { ...objects[id] }));
+          startModal(kind, ({ dx = 0, dy = 0, axis, numeric, finalize, ctrlKey }) => {
+            selectedIds.forEach((id) => {
+              const o = initial[id];
+              if (kind === 'move') {
+                const mag = numeric != null ? numeric : -dy * 0.01;
+                const delta = [0, 0, 0];
+                const axisIdx = axis === 'x' ? 0 : axis === 'y' ? 1 : axis === 'z' ? 2 : 1;
+                delta[axisIdx] = axis ? mag : -dy * 0.01;
+                if (!axis) delta[0] = dx * 0.01;
+                let next = [o.position[0] + delta[0], o.position[1] + delta[1], o.position[2] + delta[2]];
+                // Ctrl-held grid snap (Blender's own increment-snap during
+                // Grab) — very useful for lining up hard-surface parts
+                // (wheels, panel seams, weapon attachments) on a clean grid.
+                if (ctrlKey && numeric == null) next = next.map((v) => Math.round(v / 0.25) * 0.25);
+                updateTransformLive(id, { position: next });
+              } else if (kind === 'rotate') {
+                const angle = numeric != null ? THREE.MathUtils.degToRad(numeric) : dx * 0.01;
+                const rot = o.rotation.slice();
+                const axisIdx = axis === 'x' ? 0 : axis === 'y' ? 1 : axis === 'z' ? 2 : 2;
+                rot[axisIdx] = o.rotation[axisIdx] + angle;
+                updateTransformLive(id, { rotation: rot });
+              } else if (kind === 'scale') {
+                const factor = numeric != null ? numeric : 1 + dx * 0.01;
+                const scl = o.scale.slice();
+                if (axis) { const axisIdx = axis === 'x' ? 0 : axis === 'y' ? 1 : 2; scl[axisIdx] = o.scale[axisIdx] * factor; }
+                else { scl[0] = o.scale[0] * factor; scl[1] = o.scale[1] * factor; scl[2] = o.scale[2] * factor; }
+                updateTransformLive(id, { scale: scl });
+              }
+            });
+            if (finalize) commitTransform();
+          }, () => { selectedIds.forEach((id) => updateTransformLive(id, initial[id])); commitTransform(); });
+        }
+        if (e.key === 'x' || e.key === 'X' || e.key === 'Delete') deleteObjects(selectedIds);
+        if (e.key === 'd' && (e.shiftKey || e.ctrlKey)) duplicateObjects(selectedIds);
+      }
+
+      if (mode === 'edit') {
+        if (e.key === '1') useStore.getState().setEditSelectMode('vertex');
+        if (e.key === '2') useStore.getState().setEditSelectMode('edge');
+        if (e.key === '3') useStore.getState().setEditSelectMode('face');
+        if (e.key === 'e' && !e.shiftKey && editSelection.faces.length && activeId) {
+          const before = objects[activeId].mesh.clone();
+          let extrudeInfo = null;
+          applyMeshOp(activeId, (mesh) => { extrudeInfo = mesh.extrudeFaces(editSelection.faces, 0); mesh.touch(); }, 'Extrude');
+          startModal('move', ({ dy = 0, numeric, finalize }) => {
+            const mesh = useStore.getState().objects[activeId].mesh;
+            const mag = numeric != null ? numeric : -dy * 0.02;
+            extrudeInfo.newVertexIndices.forEach((vi) => {
+              mesh.vertices[vi][0] += (extrudeInfo.normal.x * mag) / 30;
+              mesh.vertices[vi][1] += (extrudeInfo.normal.y * mag) / 30;
+              mesh.vertices[vi][2] += (extrudeInfo.normal.z * mag) / 30;
+            });
+            mesh.touch();
+            if (finalize) forceRender((n) => n + 1);
+          }, () => { useStore.setState((s) => ({ objects: { ...s.objects, [activeId]: { ...s.objects[activeId], mesh: before } } })); });
+        }
+        if (e.key === 'x' || e.key === 'X' || e.key === 'Delete') {
+          if (!activeId) return;
+          if (editSelectMode === 'face' && editSelection.faces.length) applyMeshOp(activeId, (mesh) => { mesh.deleteFaces(editSelection.faces); mesh.touch(); }, 'Delete Faces');
+          else if (editSelectMode === 'edge' && editSelection.edges.length) applyMeshOp(activeId, (mesh) => { mesh.deleteEdges(editSelection.edges); mesh.touch(); }, 'Delete Edges');
+          else if (editSelectMode === 'vertex' && editSelection.verts.length) applyMeshOp(activeId, (mesh) => { mesh.deleteVertices(editSelection.verts); mesh.touch(); }, 'Delete Vertices');
+          setEditSelection({ verts: [], edges: [], faces: [] });
+        }
+        if (e.key === 'm' && editSelectMode === 'vertex' && editSelection.verts.length >= 2) {
+          applyMeshOp(activeId, (mesh) => { mesh.mergeVerticesAtCenter(editSelection.verts); mesh.touch(); }, 'Merge at Center');
+          setEditSelection({ verts: [], edges: [], faces: [] });
+        }
+        if (e.key === 'E' && e.shiftKey && editSelectMode === 'edge' && editSelection.edges.length && activeId) toggleSeams(activeId, editSelection.edges);
+        if (e.ctrlKey && (e.key === 'b' || e.key === 'B')) {
+          if (editSelectMode !== 'edge' || !editSelection.edges.length || !activeId) {
+            window.dispatchEvent(new CustomEvent('blite:toast', { detail: 'Select edges (Edge select mode, press 2) before Bevel.' }));
+          } else {
+            const before = objects[activeId].mesh.clone();
+            const edgeKeys = editSelection.edges;
+            startModal('bevel', ({ dy = 0, numeric, finalize }) => {
+              const width = Math.max(0.001, numeric != null ? numeric : -dy * 0.005 + 0.05);
+              const fresh = before.clone();
+              fresh.bevelEdges(edgeKeys, width);
+              fresh.touch();
+              useStore.setState((s) => ({ objects: { ...s.objects, [activeId]: { ...s.objects[activeId], mesh: fresh } } }));
+              if (finalize) {
+                setEditSelection({ verts: [], edges: [], faces: [] });
+                useStore.getState()._pushCommand({
+                  label: 'Bevel',
+                  undo: () => useStore.setState((s) => ({ objects: { ...s.objects, [activeId]: { ...s.objects[activeId], mesh: before } } })),
+                  redo: () => useStore.setState((s) => ({ objects: { ...s.objects, [activeId]: { ...s.objects[activeId], mesh: fresh } } })),
+                });
+              }
+            }, () => { useStore.setState((s) => ({ objects: { ...s.objects, [activeId]: { ...s.objects[activeId], mesh: before } } })); });
+          }
+        }
+        if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) window.dispatchEvent(new CustomEvent('blite:toast', { detail: 'Loop Cut is not implemented in this build.' }));
+        if (e.key === 'k' || e.key === 'K') window.dispatchEvent(new CustomEvent('blite:toast', { detail: 'Knife tool is not implemented in this build.' }));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mode, selectedIds, objects, activeId, editSelectMode, editSelection, setMode, deleteObjects, duplicateObjects, beginTransform, updateTransformLive, commitTransform, applyMeshOp, undo, redo, setEditSelection, startModal, toggleSeams, setGizmoMode]);
+
+  const onEditClick = (e) => {
+    if (addMenu || shadingMenu || colorMenu) return;
+    if (mode !== 'edit' || !activeId) return;
+    const obj = objects[activeId];
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mesh3 = smRef.current.meshObjects.get(activeId);
+    const camera = smRef.current.camera;
+    if (editSelectMode === 'vertex') {
+      let best = null, bestDist = 14;
+      obj.mesh.vertices.forEach((v, vi) => {
+        const world = new THREE.Vector3(...v).applyMatrix4(mesh3.matrixWorld);
+        const p = world.clone().project(camera);
+        const sx = ((p.x + 1) / 2) * rect.width + rect.left, sy = ((1 - p.y) / 2) * rect.height + rect.top;
+        const d = Math.hypot(sx - e.clientX, sy - e.clientY);
+        if (d < bestDist) { bestDist = d; best = vi; }
+      });
+      if (best == null) { if (!e.shiftKey) setEditSelection({ verts: [], edges: [], faces: [] }); return; }
+      const cur = editSelection.verts;
+      setEditSelection({ ...editSelection, verts: e.shiftKey ? (cur.includes(best) ? cur.filter((i) => i !== best) : [...cur, best]) : [best] });
+    } else if (editSelectMode === 'face') {
+      const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1, ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      smRef.current.raycaster.setFromCamera({ x: ndcX, y: ndcY }, camera);
+      const hits = smRef.current.raycaster.intersectObject(mesh3, false);
+      if (!hits.length) { if (!e.shiftKey) setEditSelection({ verts: [], edges: [], faces: [] }); return; }
+      let triCursor = 0, faceIdx = null;
+      for (let fi = 0; fi < obj.mesh.faces.length; fi++) {
+        const triCount = obj.mesh.faces[fi].length - 2;
+        if (hits[0].faceIndex >= triCursor && hits[0].faceIndex < triCursor + triCount) { faceIdx = fi; break; }
+        triCursor += triCount;
+      }
+      if (faceIdx == null) return;
+      const cur = editSelection.faces;
+      setEditSelection({ ...editSelection, faces: e.shiftKey ? (cur.includes(faceIdx) ? cur.filter((i) => i !== faceIdx) : [...cur, faceIdx]) : [faceIdx] });
+    } else if (editSelectMode === 'edge') {
+      let best = null, bestDist = 10;
+      obj.mesh.edgeMap().forEach((edge, key) => {
+        const pa = new THREE.Vector3(...obj.mesh.vertices[edge.a]).applyMatrix4(mesh3.matrixWorld).project(camera);
+        const pb = new THREE.Vector3(...obj.mesh.vertices[edge.b]).applyMatrix4(mesh3.matrixWorld).project(camera);
+        const ax = ((pa.x + 1) / 2) * rect.width + rect.left, ay = ((1 - pa.y) / 2) * rect.height + rect.top;
+        const bx = ((pb.x + 1) / 2) * rect.width + rect.left, by = ((1 - pb.y) / 2) * rect.height + rect.top;
+        const d = distToSegment(e.clientX, e.clientY, ax, ay, bx, by);
+        if (d < bestDist) { bestDist = d; best = key; }
+      });
+      if (best == null) { if (!e.shiftKey) setEditSelection({ verts: [], edges: [], faces: [] }); return; }
+      const cur = editSelection.edges;
+      setEditSelection({ ...editSelection, edges: e.shiftKey ? (cur.includes(best) ? cur.filter((k) => k !== best) : [...cur, best]) : [best] });
+    }
+  };
+
+  const activeObjForColor = activeId ? objects[activeId] : null;
+
+  return html`<div ref=${wrapRef} className="viewport-wrap">
+    <canvas ref=${canvasRef} onClick=${(e) => { onCanvasClick(e); onEditClick(e); }} />
+    ${hint && html`<div className="modal-hint">${hint}</div>`}
+
+    ${addMenu && html`<div className="cursor-popup" style=${{ left: addMenu.x, top: addMenu.y }}>
+      <div className="cursor-popup-title">Add</div>
+      ${Object.keys(PRIMITIVES).map((key) => html`<button key=${key} onClick=${() => { addPrimitive(PRIMITIVES[key], key); setAddMenu(null); }}>${key.replace('_', ' ')}</button>`)}
+      <button onClick=${() => setAddMenu(null)} className="cursor-popup-cancel">Cancel</button>
+    </div>`}
+
+    ${shadingMenu && html`<div className="cursor-popup" style=${{ left: shadingMenu.x, top: shadingMenu.y }}>
+      <div className="cursor-popup-title">Shading</div>
+      <button className=${viewportShading === 'solid' ? 'active' : ''} onClick=${() => { setViewportShading('solid'); setShadingMenu(null); }}>Solid</button>
+      <button className=${viewportShading === 'wireframe' ? 'active' : ''} onClick=${() => { setViewportShading('wireframe'); setShadingMenu(null); }}>Wireframe</button>
+      <button onClick=${() => setShadingMenu(null)} className="cursor-popup-cancel">Cancel</button>
+    </div>`}
+
+    ${colorMenu && activeObjForColor && html`<div className="cursor-popup" style=${{ left: colorMenu.x, top: colorMenu.y }}>
+      <div className="cursor-popup-title">Color</div>
+      <input type="color" value=${activeObjForColor.color} onChange=${(e) => setColor(activeId, e.target.value)} autoFocus />
+      <button onClick=${() => setColorMenu(null)} className="cursor-popup-cancel">Done</button>
+    </div>`}
+  </div>`;
+}
+
+// ---------------------------------------------------------------------
+// App + mount
+// ---------------------------------------------------------------------
+function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [toast, setToast] = useState(null);
+  useEffect(() => { recoverAutosaveIfPresent(); startAutosave(30000); return () => stopAutosave(); }, []);
+  useEffect(() => {
+    const onToggle = () => setSidebarOpen((o) => !o);
+    const onToast = (e) => { setToast(e.detail); clearTimeout(window.__toastTimer); window.__toastTimer = setTimeout(() => setToast(null), 4000); };
+    const onKey = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveProject(); } };
+    window.addEventListener('blite:toggle-sidebar', onToggle);
+    window.addEventListener('blite:toast', onToast);
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('blite:toggle-sidebar', onToggle); window.removeEventListener('blite:toast', onToast); window.removeEventListener('keydown', onKey); };
+  }, []);
+  return html`<div className="app-root">
+    <${MenuBar} />
+    <div className="main-area">
+      <${Toolbar} />
+      <div className="viewport-center"><${Viewport} /></div>
+      ${sidebarOpen && html`<div className="right-sidebar"><${Outliner} /><${PropertiesPanel} /></div>`}
+    </div>
+    <${StatusBar} />
+    ${toast && html`<div className="toast">${toast}</div>`}
+  </div>`;
+}
+
+createRoot(document.getElementById('root')).render(html`<${App} />`);
+</script>
+</body>
+</html>
